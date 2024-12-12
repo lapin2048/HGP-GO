@@ -1,5 +1,5 @@
 from PyQt6.QtWidgets import QFrame
-from PyQt6.QtCore import Qt, QTimer, pyqtSignal
+from PyQt6.QtCore import Qt, QTimer, pyqtSignal, QPoint
 from PyQt6.QtGui import QPainter, QColor, QBrush
 
 class Board(QFrame):  # base the board on a QFrame widget
@@ -7,8 +7,8 @@ class Board(QFrame):  # base the board on a QFrame widget
     clickLocationSignal = pyqtSignal(str)  # signal sent when there is a new click location
 
     # TODO set the board width and height to be square
-    boardWidth = 0  # board is 0 squares wide # TODO this needs updating
-    boardHeight = 0  #
+    boardWidth = 7  # board is 0 squares wide # TODO this needs updating
+    boardHeight = 7  #
     timerSpeed = 1000  # the timer updates every 1 second
     counter = 10  # the number the counter will count down from
 
@@ -23,8 +23,8 @@ class Board(QFrame):  # base the board on a QFrame widget
         self.isStarted = False  # game is not currently started
         self.start()  # start the game which will start the timer
 
-        self.boardArray = []  # TODO - create a 2d int/Piece array to store the state of the game
-        # self.printBoardArray()    # TODO - uncomment this method after creating the array above
+        self.boardArray = [[0 for _ in range(self.boardWidth)] for _ in range(self.boardHeight)]
+        self.printBoardArray()
 
     def printBoardArray(self):
         '''prints the boardArray in an attractive way'''
@@ -37,11 +37,11 @@ class Board(QFrame):  # base the board on a QFrame widget
 
     def squareWidth(self):
         '''returns the width of one square in the board'''
-        return self.contentsRect().width() / self.boardWidth
+        return round(self.contentsRect().width() / self.boardWidth)
 
     def squareHeight(self):
         '''returns the height of one square of the board'''
-        return self.contentsRect().height() / self.boardHeight
+        return round(self.contentsRect().height() / self.boardHeight)
 
     def start(self):
         '''starts game'''
@@ -67,7 +67,7 @@ class Board(QFrame):  # base the board on a QFrame widget
 
     def mousePressEvent(self, event):
         '''this event is automatically called when the mouse is pressed'''
-        clickLoc = "click location [" + str(event.x()) + "," + str(event.y()) + "]"  # the location where a mouse click was registered
+        clickLoc = "click location [" + str(event.position().x()) + "," + str(event.position().y()) + "]"  # the location where a mouse click was registered
         print("mousePressEvent() - " + clickLoc)
         # TODO you could call some game logic here
         self.clickLocationSignal.emit(clickLoc)
@@ -100,7 +100,7 @@ class Board(QFrame):  # base the board on a QFrame widget
                 painter.translate(col * self.squareWidth(), row * self.squareHeight())
                 # TODO draw some pieces as ellipses
                 # TODO choose your color and set the painter brush to the correct color
-                radius = (self.squareWidth() - 2) / 2
+                radius = round((self.squareWidth() - 2) / 2)
                 center = QPoint(radius, radius)
                 painter.drawEllipse(center, radius, radius)
                 painter.restore()
