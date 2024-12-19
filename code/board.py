@@ -1,6 +1,6 @@
 from PyQt6.QtWidgets import QFrame
 from PyQt6.QtCore import Qt, QTimer, pyqtSignal, QPoint
-from PyQt6.QtGui import QPainter, QColor, QBrush
+from PyQt6.QtGui import QPainter, QColor, QBrush, QPen
 
 class Board(QFrame):  # base the board on a QFrame widget
     updateTimerSignal = pyqtSignal(int)  # signal sent when the timer is updated
@@ -23,7 +23,7 @@ class Board(QFrame):  # base the board on a QFrame widget
         self.isStarted = False  # game is not currently started
         self.start()  # start the game which will start the timer
 
-        self.boardArray = [[0 for _ in range(self.boardWidth)] for _ in range(self.boardHeight)]
+        self.boardArray = [[0 for _ in range(self.boardWidth + 1)] for _ in range(self.boardHeight + 1)]
         self.printBoardArray()
 
     def printBoardArray(self):
@@ -37,11 +37,11 @@ class Board(QFrame):  # base the board on a QFrame widget
 
     def squareWidth(self):
         '''returns the width of one square in the board'''
-        return round(self.contentsRect().width() / self.boardWidth)
+        return round(self.contentsRect().width() / (self.boardWidth + 2))
 
     def squareHeight(self):
         '''returns the height of one square of the board'''
-        return round(self.contentsRect().height() / self.boardHeight)
+        return round(self.contentsRect().height() / (self.boardHeight + 2))
 
     def start(self):
         '''starts game'''
@@ -62,14 +62,21 @@ class Board(QFrame):  # base the board on a QFrame widget
     def paintEvent(self, event):
         '''paints the board and the pieces of the game'''
         painter = QPainter(self)
+        painter.setPen(QPen(Qt.GlobalColor.black, 3, Qt.PenStyle.SolidLine))
         self.drawBoardSquares(painter)
         self.drawPieces(painter)
 
     def mousePressEvent(self, event):
         '''this event is automatically called when the mouse is pressed'''
-        clickLoc = "click location [" + str(event.position().x()) + "," + str(event.position().y()) + "]"  # the location where a mouse click was registered
+        x, y = event.position().x(), event.position().y()
+        clickLoc = "click location [" + str(x) + "," + str(y) + "]"  # the location where a mouse click was registered
         print("mousePressEvent() - " + clickLoc)
         # TODO you could call some game logic here
+        a = (x - self.squareWidth()) / self.squareWidth()
+        b = (y - self.squareHeight()) / self.squareHeight()
+        int_a, int_b = int(a), int(b)
+        if int_a == round(a, 1) and int_b == round(b, 1) and self.boardArray[int_b][int_a] == 0:
+            self.boardArray[int_b][int_a] = 1
         self.clickLocationSignal.emit(clickLoc)
 
     def resetGame(self):
@@ -84,23 +91,29 @@ class Board(QFrame):  # base the board on a QFrame widget
         '''draw all the square on the board'''
         squareWidth = self.squareWidth()
         squareHeight = self.squareHeight()
+        painter.setBrush(QBrush(QColor(255, 255, 255)))  # Set brush color
+        painter.drawRect(0, 0, self.contentsRect().width(), self.contentsRect().height())
         for row in range(0, Board.boardHeight):
             for col in range(0, Board.boardWidth):
                 painter.save()
                 painter.translate(col * squareWidth, row * squareHeight)
-                painter.setBrush(QBrush(QColor(255, 255, 255)))  # Set brush color
-                painter.drawRect(0, 0, squareWidth, squareHeight)  # Draw rectangles
+                painter.drawRect(squareWidth, squareHeight, squareWidth, squareHeight)  # Draw rectangles
                 painter.restore()
 
     def drawPieces(self, painter):
         '''draw the pieces on the board'''
+        # We define squareWidth and squareHeight once and for all to avoid having
+        # to compute it every time
+        squareWidth = self.squareWidth()
+        squareHeight = self.squareHeight()
         for row in range(0, len(self.boardArray)):
             for col in range(0, len(self.boardArray[0])):
-                painter.save()
-                painter.translate(col * self.squareWidth(), row * self.squareHeight())
-                # TODO draw some pieces as ellipses
-                # TODO choose your color and set the painter brush to the correct color
-                radius = round((self.squareWidth() - 2) / 2)
-                center = QPoint(radius, radius)
-                painter.drawEllipse(center, radius, radius)
-                painter.restore()
+                if self.boardArray[row][col] == 1:
+                    painter.save()
+                    painter.translate(col * squareWidth, row * squareHeight)
+                    # TODO draw some pieces as ellipses
+                    # TODO choose your color and set the painter brush to the correct color
+                    radius = round((self.squareWidth() - 2) / 2)
+                    center = QPoint(radius + squareWidth // 2, radius + squareHeight // 2)
+                    painter.drawEllipse(center, radius, radius)
+                    painter.restore()
