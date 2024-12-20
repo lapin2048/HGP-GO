@@ -6,8 +6,7 @@ class Board(QFrame):  # base the board on a QFrame widget
     updateTimerSignal = pyqtSignal(int)  # signal sent when the timer is updated
     clickLocationSignal = pyqtSignal(str)  # signal sent when there is a new click location
 
-    # TODO set the board width and height to be square
-    boardWidth = 7  # board is 0 squares wide # TODO this needs updating
+    boardWidth = 7
     boardHeight = 7  #
     timerSpeed = 1000  # the timer updates every 1 second
     counter = 10  # the number the counter will count down from
@@ -70,14 +69,17 @@ class Board(QFrame):  # base the board on a QFrame widget
         '''this event is automatically called when the mouse is pressed'''
         x, y = event.position().x(), event.position().y()
         clickLoc = "click location [" + str(x) + "," + str(y) + "]"  # the location where a mouse click was registered
+        print(self.squareWidth(), self.squareHeight())
         print("mousePressEvent() - " + clickLoc)
         # TODO you could call some game logic here
         a = (x - self.squareWidth()) / self.squareWidth()
         b = (y - self.squareHeight()) / self.squareHeight()
-        int_a, int_b = int(a), int(b)
-        if int_a == round(a, 1) and int_b == round(b, 1) and self.boardArray[int_b][int_a] == 0:
-            self.boardArray[int_b][int_a] = 1
+        round_a, round_b = round(a), round(b)
+        print(abs(round_a - a), abs(round_b - b), self.boardArray[round_b][round_a])
+        if abs(round_a - a) < 0.2 and abs(round_b - b) < 0.2 and self.boardArray[round_b][round_a] == 0:
+            self.boardArray[round_b][round_a] = 1
         self.clickLocationSignal.emit(clickLoc)
+        self.repaint()
 
     def resetGame(self):
         '''clears pieces from the board'''
