@@ -1,15 +1,17 @@
 from PyQt6.QtWidgets import QFrame
 from PyQt6.QtCore import Qt, QTimer, pyqtSignal, QPoint
 from PyQt6.QtGui import QPainter, QColor, QBrush, QPen
+import config
+
 
 class Board(QFrame):  # base the board on a QFrame widget
     updateTimerSignal = pyqtSignal(int)  # signal sent when the timer is updated
-    clickLocationSignal = pyqtSignal(str)  # signal sent when there is a new click location
+    clickLocationSignal = pyqtSignal(str)  # signal sent when there is a new piece to add
 
     boardWidth = 7
-    boardHeight = 7  #
+    boardHeight = 7
     timerSpeed = 1000  # the timer updates every 1 second
-    counter = 10  # the number the counter will count down from
+    counter = 30  # the number the counter will count down from
 
     def __init__(self, parent):
         super().__init__(parent)
@@ -22,6 +24,9 @@ class Board(QFrame):  # base the board on a QFrame widget
         self.isStarted = False  # game is not currently started
         self.start()  # start the game which will start the timer
 
+        # 0 represents no piece
+        # 1 represents a piece of the player 1
+        # 2 represents a piece of the player 2
         self.boardArray = [[0 for _ in range(self.boardWidth + 1)] for _ in range(self.boardHeight + 1)]
         self.printBoardArray()
 
@@ -69,7 +74,6 @@ class Board(QFrame):  # base the board on a QFrame widget
         '''this event is automatically called when the mouse is pressed'''
         x, y = event.position().x(), event.position().y()
         clickLoc = "click location [" + str(x) + "," + str(y) + "]"  # the location where a mouse click was registered
-        print(self.squareWidth(), self.squareHeight())
         print("mousePressEvent() - " + clickLoc)
         # TODO you could call some game logic here
         a = (x - self.squareWidth()) / self.squareWidth()
@@ -77,9 +81,11 @@ class Board(QFrame):  # base the board on a QFrame widget
         round_a, round_b = round(a), round(b)
         print(abs(round_a - a), abs(round_b - b), self.boardArray[round_b][round_a])
         if abs(round_a - a) < 0.2 and abs(round_b - b) < 0.2 and self.boardArray[round_b][round_a] == 0:
-            self.boardArray[round_b][round_a] = 1
+            self.boardArray[round_b][round_a] = config.turn + 1
+            self.repaint()
+            # The current player has played so we move on to the next turn
+            config.turn = 1 - config.turn
         self.clickLocationSignal.emit(clickLoc)
-        self.repaint()
 
     def resetGame(self):
         '''clears pieces from the board'''
@@ -110,12 +116,18 @@ class Board(QFrame):  # base the board on a QFrame widget
         squareHeight = self.squareHeight()
         for row in range(0, len(self.boardArray)):
             for col in range(0, len(self.boardArray[0])):
-                if self.boardArray[row][col] == 1:
+                # If there is a piece to display
+                square_content = self.boardArray[row][col]
+                if square_content > 0:
                     painter.save()
                     painter.translate(col * squareWidth, row * squareHeight)
-                    # TODO draw some pieces as ellipses
-                    # TODO choose your color and set the painter brush to the correct color
-                    radius = round((self.squareWidth() - 2) / 2)
-                    center = QPoint(radius + squareWidth // 2, radius + squareHeight // 2)
-                    painter.drawEllipse(center, radius, radius)
+
+                    # The piece color depends on the player who owns it
+                    a = 255 * square_content - 255
+                    painter.setBrush(QBrush(QColor(a, a, a)))
+
+                    radius1 = round((self.squareWidth() - 2) / 2)
+                    radius2 = round((self.squareHeight() - 2) / 2)
+                    center = QPoint(radius1 + squareWidth // 2, radius2 + squareHeight // 2)
+                    painter.drawEllipse(center, radius1, radius2)
                     painter.restore()

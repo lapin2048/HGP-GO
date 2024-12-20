@@ -1,5 +1,6 @@
 from PyQt6.QtWidgets import QDockWidget, QVBoxLayout, QWidget, QLabel
 from PyQt6.QtCore import pyqtSlot
+import config
 
 
 class ScoreBoard(QDockWidget):
@@ -8,6 +9,10 @@ class ScoreBoard(QDockWidget):
     def __init__(self):
         super().__init__()
         self.initUI()
+
+        # When config.turn = 0, it's up to the player 1 to play
+        # When config.turn = 1, it's up to the player 2 to play
+        config.turn = 0
 
     def initUI(self):
         '''initiates ScoreBoard UI'''
@@ -34,7 +39,7 @@ class ScoreBoard(QDockWidget):
         # when the updateTimerSignal is emitted in the board the setTimeRemaining slot receives it
         board.updateTimerSignal.connect(self.setTimeRemaining)
 
-    @pyqtSlot(str)  # checks to make sure that the following slot is receiving an argument of the type 'int'
+    @pyqtSlot(str)
     def setClickLocation(self, clickLoc):
         '''updates the label to show the click location'''
         self.label_clickLocation.setText("Click Location: " + clickLoc)
