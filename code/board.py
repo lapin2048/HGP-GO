@@ -16,6 +16,9 @@ class Board(QFrame):  # base the board on a QFrame widget
     def __init__(self, parent):
         super().__init__(parent)
         self.initBoard()
+        # History of positions (the initial position with no pieces is not
+        # recorded because there would be no risk of returning to an empty board)
+        self.history = []
 
     def initBoard(self):
         '''initiates board'''
@@ -79,7 +82,7 @@ class Board(QFrame):  # base the board on a QFrame widget
         b = (y - self.squareHeight()) / self.squareHeight()
         round_a, round_b = round(a), round(b)
         print(abs(round_a - a), abs(round_b - b), self.boardArray[round_b][round_a])
-        if abs(round_a - a) < 0.2 and abs(round_b - b) < 0.2 and self.boardArray[round_b][round_a] == 0:
+        if abs(round_a - a) < 0.2 and abs(round_b - b) < 0.2:
             self.tryMove(round_a, round_b)
         self.clickLocationSignal.emit(clickLoc)
 
@@ -89,10 +92,15 @@ class Board(QFrame):  # base the board on a QFrame widget
 
     def tryMove(self, newX, newY):
         '''tries to move a piece'''
-        self.boardArray[newY][newX] = config.turn + 1
-        self.repaint()
-        # The current player has played so we move on to the next turn
-        config.turn = 1 - config.turn
+        if self.boardArray[newY][newX] == 0: # If the intersection is empty
+            newBoardPlanned = eval(str(self.boardArray)) # Create a deep copy
+            newBoardPlanned[newY][newX] = config.turn + 1
+            if not newBoardPlanned in self.history:
+                self.boardArray = newBoardPlanned
+                self.repaint()
+                # The current player has played so we move on to the next turn
+                config.turn = 1 - config.turn
+                self.history.append(self.boardArray)
 
     def drawBoardSquares(self, painter):
         '''draw all the square on the board'''
