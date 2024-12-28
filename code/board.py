@@ -75,16 +75,12 @@ class Board(QFrame):  # base the board on a QFrame widget
         x, y = event.position().x(), event.position().y()
         clickLoc = "click location [" + str(x) + "," + str(y) + "]"  # the location where a mouse click was registered
         print("mousePressEvent() - " + clickLoc)
-        # TODO you could call some game logic here
         a = (x - self.squareWidth()) / self.squareWidth()
         b = (y - self.squareHeight()) / self.squareHeight()
         round_a, round_b = round(a), round(b)
         print(abs(round_a - a), abs(round_b - b), self.boardArray[round_b][round_a])
         if abs(round_a - a) < 0.2 and abs(round_b - b) < 0.2 and self.boardArray[round_b][round_a] == 0:
-            self.boardArray[round_b][round_a] = config.turn + 1
-            self.repaint()
-            # The current player has played so we move on to the next turn
-            config.turn = 1 - config.turn
+            self.tryMove(round_a, round_b)
         self.clickLocationSignal.emit(clickLoc)
 
     def resetGame(self):
@@ -93,7 +89,10 @@ class Board(QFrame):  # base the board on a QFrame widget
 
     def tryMove(self, newX, newY):
         '''tries to move a piece'''
-        pass  # Implement this method according to your logic
+        self.boardArray[newY][newX] = config.turn + 1
+        self.repaint()
+        # The current player has played so we move on to the next turn
+        config.turn = 1 - config.turn
 
     def drawBoardSquares(self, painter):
         '''draw all the square on the board'''
