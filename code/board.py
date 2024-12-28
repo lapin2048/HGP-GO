@@ -98,7 +98,7 @@ class Board(QFrame):  # base the board on a QFrame widget
         '''draw all the square on the board'''
         squareWidth = self.squareWidth()
         squareHeight = self.squareHeight()
-        painter.setBrush(QBrush(QColor(255, 255, 255)))  # Set brush color
+        painter.setBrush(QBrush(QColor(120, 70, 20)))  # Set brush color
         painter.drawRect(0, 0, self.contentsRect().width(), self.contentsRect().height())
         for row in range(0, Board.boardHeight):
             for col in range(0, Board.boardWidth):
