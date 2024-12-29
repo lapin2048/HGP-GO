@@ -95,12 +95,78 @@ class Board(QFrame):  # base the board on a QFrame widget
         if self.boardArray[newY][newX] == 0: # If the intersection is empty
             newBoardPlanned = eval(str(self.boardArray)) # Create a deep copy
             newBoardPlanned[newY][newX] = config.turn + 1
-            if not newBoardPlanned in self.history:
-                self.boardArray = newBoardPlanned
-                self.repaint()
-                # The current player has played so we move on to the next turn
-                config.turn = 1 - config.turn
-                self.history.append(self.boardArray)
+            if not newBoardPlanned in self.history: # Eternity Rule
+                print(True)
+                if self.free(newBoardPlanned, newX, newY): # Suicide Rule
+                    print(True)
+                    self.boardArray = newBoardPlanned
+                    self.repaint()
+                    # The current player has played so we move on to the next turn
+                    config.turn = 1 - config.turn
+                    self.history.append(self.boardArray)
+                else:
+                    print(False)
+
+    def capturable(self, boardArray, x, y, already_checked=[]):
+        '''A method used for the free method.'''
+        piece = boardArray[y][x] # Should be 1 or 2 depending on the piece
+        w, h = len(boardArray[0]), len(boardArray)
+        adjacentPositions = {}
+        if x > 0:
+            adjacentPositions[(x - 1, y)] = boardArray[y][x - 1]
+        if x < w - 1:
+            adjacentPositions[(x + 1, y)] = boardArray[y][x + 1]
+        if y > 0:
+            adjacentPositions[(x, y - 1)] = boardArray[y - 1][x]
+        if y < h - 1:
+            adjacentPositions[(x, y + 1)] = boardArray[y + 1][x]
+
+        # If there is at least one empty position adjacent to the piece
+        if 0 in adjacentPositions.values():
+            return False
+
+        # Check if there is at least one adjacent not capturable friendly piece
+        for (i, j), value in adjacentPositions.items():
+            if not (i, j) in already_checked:
+                if value == piece and not self.capturable(boardArray, i, j, already_checked + [(x, y)]):
+                    return False
+
+        # If no liberty was found, then return True
+        return True
+
+    def free(self, boardArray, x, y, already_checked=[]):
+        '''Returns True if the piece at (x, y) has at least one liberty
+        and False otherwise.
+        The already_checked argument includes positions already checked.'''
+        piece = boardArray[y][x] # Should be 1 or 2 depending on the piece
+        w, h = len(boardArray[0]), len(boardArray)
+        adjacentPositions = {}
+        if x > 0:
+            adjacentPositions[(x - 1, y)] = boardArray[y][x - 1]
+        if x < w - 1:
+            adjacentPositions[(x + 1, y)] = boardArray[y][x + 1]
+        if y > 0:
+            adjacentPositions[(x, y - 1)] = boardArray[y - 1][x]
+        if y < h - 1:
+            adjacentPositions[(x, y + 1)] = boardArray[y + 1][x]
+
+        # If there is at least one empty position adjacent to the piece
+        if 0 in adjacentPositions.values():
+            return True
+
+        # Return True if any adjacent enemy piece could be captured by adding the new piece
+        for (i, j), value in adjacentPositions.items():
+            if value != piece and self.capturable(boardArray, i, j):
+                return True
+
+        # Check if adjacent friendly pieces have liberties
+        for (i, j), value in adjacentPositions.items():
+            if value == piece and not (i, j) in already_checked:
+                if self.free(boardArray, i, j, already_checked + [(x, y)]):
+                    return True
+
+        # If no liberty was found, then return False
+        return False
 
     def drawBoardSquares(self, painter):
         '''draw all the square on the board'''
