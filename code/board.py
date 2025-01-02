@@ -40,8 +40,16 @@ class Board(QFrame):  # base the board on a QFrame widget
 
     def mousePosToColRow(self, event):
         '''convert the mouse click event to a row and column'''
-        pass  # Implement this method according to your logic
-
+        x, y = event.position().x(), event.position().y()  # Get the x and y position of the mouse click
+        a = (x - self.squareWidth()) / self.squareWidth()  # Calculate fractional column index
+        b = (y - self.squareHeight()) / self.squareHeight()  # Calculate fractional row index
+        round_a, round_b = round(a), round(b)  # Round to the nearest integer
+        # Ensure the rounded indices are within bounds
+        if 0 <= round_a < self.boardWidth and 0 <= round_b < self.boardHeight:
+            return round_b, round_a  # Return as (row, column)
+        else:
+            return None, None  # Return None if outside bounds
+        
     def squareWidth(self):
         '''returns the width of one square in the board'''
         return round(self.contentsRect().width() / (self.boardWidth + 2))
@@ -74,18 +82,24 @@ class Board(QFrame):  # base the board on a QFrame widget
         self.drawPieces(painter)
 
     def mousePressEvent(self, event):
-        '''this event is automatically called when the mouse is pressed'''
+        '''This event is automatically called when the mouse is pressed.'''
         x, y = event.position().x(), event.position().y()
-        clickLoc = "click location [" + str(x) + "," + str(y) + "]"  # the location where a mouse click was registered
+        clickLoc = f"click location [{x}, {y}]"  # Log the click location
         print("mousePressEvent() - " + clickLoc)
-        a = (x - self.squareWidth()) / self.squareWidth()
-        b = (y - self.squareHeight()) / self.squareHeight()
-        round_a, round_b = round(a), round(b)
-        print(abs(round_a - a), abs(round_b - b), self.boardArray[round_b][round_a])
-        if abs(round_a - a) < 0.2 and abs(round_b - b) < 0.2:
-            self.tryMove(round_a, round_b)
-        self.clickLocationSignal.emit(clickLoc)
 
+        # Use mousePosToColRow to determine the row and column
+        row, col = self.mousePosToColRow(event)
+
+        if row is not None and col is not None:  # Ensure the click is within bounds
+            print(f"Converted to board position: Row {row}, Column {col}")
+            if abs((col - ((x - self.squareWidth()) / self.squareWidth()))) < 0.2 and \
+            abs((row - ((y - self.squareHeight()) / self.squareHeight()))) < 0.2:
+                self.tryMove(col, row)
+            self.clickLocationSignal.emit(clickLoc)
+        else:
+            print("Clicked outside the board")
+
+            
     def resetGame(self):
         '''clears pieces from the board'''
         # TODO write code to reset game
