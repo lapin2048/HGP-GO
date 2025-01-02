@@ -3,10 +3,11 @@ from PyQt6.QtCore import Qt, QTimer, pyqtSignal, QPoint
 from PyQt6.QtGui import QPainter, QColor, QBrush, QPen
 import config
 
-
-class Board(QFrame):  # base the board on a QFrame widget
+class Board(QFrame):
     updateTimerSignal = pyqtSignal(int)  # signal sent when the timer is updated
     clickLocationSignal = pyqtSignal(str)  # signal sent when there is a new piece to add
+    updateScoreSignal = pyqtSignal(dict)  # signal sent to update the score
+    updateTurnSignal = pyqtSignal(int)  # signal sent to update the turn
 
     boardWidth = 7
     boardHeight = 7
@@ -19,6 +20,7 @@ class Board(QFrame):  # base the board on a QFrame widget
         # History of positions (the initial position with no pieces is not
         # recorded because there would be no risk of returning to an empty board)
         self.history = []
+        self.scores = {"player1": 0, "player2": 0}
 
     def initBoard(self):
         '''initiates board'''
@@ -37,6 +39,14 @@ class Board(QFrame):  # base the board on a QFrame widget
         '''prints the boardArray in an attractive way'''
         print("boardArray:")
         print('\n'.join(['\t'.join([str(cell) for cell in row]) for row in self.boardArray]))
+
+    def updateScores(self, player):
+        '''Update the scores based on captured pieces.'''
+        if player == 1:
+            self.scores["player1"] += 1
+        elif player == 2:
+            self.scores["player2"] += 1
+        self.updateScoreSignal.emit(self.scores)
 
     def mousePosToColRow(self, event):
         '''convert the mouse click event to a row and column'''
@@ -67,8 +77,7 @@ class Board(QFrame):  # base the board on a QFrame widget
 
     def timerEvent(self):
         '''this event is automatically called when the timer is updated. based on the timerSpeed variable '''
-        # TODO adapt this code to handle your timers
-        if Board.counter == 0:
+        if self.counter == 0:
             print("Game over")
         self.counter -= 1
         print('timerEvent()', self.counter)
@@ -87,7 +96,6 @@ class Board(QFrame):  # base the board on a QFrame widget
         clickLoc = f"click location [{x}, {y}]"  # Log the click location
         print("mousePressEvent() - " + clickLoc)
 
-        # Use mousePosToColRow to determine the row and column
         row, col = self.mousePosToColRow(event)
 
         if row is not None and col is not None:  # Ensure the click is within bounds
@@ -102,7 +110,9 @@ class Board(QFrame):  # base the board on a QFrame widget
             
     def resetGame(self):
         '''clears pieces from the board'''
-        # TODO write code to reset game
+        self.boardArray = [[0 for _ in range(self.boardWidth + 1)] for _ in range(self.boardHeight + 1)]
+        self.scores = {"player1": 0, "player2": 0}
+        self.updateScoreSignal.emit(self.scores)
 
     def tryMove(self, newX, newY):
         '''tries to move a piece'''
@@ -115,8 +125,9 @@ class Board(QFrame):  # base the board on a QFrame widget
                     print(True)
                     self.boardArray = newBoardPlanned
                     self.repaint()
-                    # The current player has played so we move on to the next turn
+                    self.updateScores(config.turn + 1)
                     config.turn = 1 - config.turn
+                    self.updateTurnSignal.emit(config.turn)
                     self.history.append(self.boardArray)
                 else:
                     print(False)
@@ -135,17 +146,14 @@ class Board(QFrame):  # base the board on a QFrame widget
         if y < h - 1:
             adjacentPositions[(x, y + 1)] = boardArray[y + 1][x]
 
-        # If there is at least one empty position adjacent to the piece
         if 0 in adjacentPositions.values():
             return False
 
-        # Check if there is at least one adjacent not capturable friendly piece
         for (i, j), value in adjacentPositions.items():
             if not (i, j) in already_checked:
                 if value == piece and not self.capturable(boardArray, i, j, already_checked + [(x, y)]):
                     return False
 
-        # If no liberty was found, then return True
         return True
 
     def free(self, boardArray, x, y, already_checked=[]):
@@ -164,22 +172,18 @@ class Board(QFrame):  # base the board on a QFrame widget
         if y < h - 1:
             adjacentPositions[(x, y + 1)] = boardArray[y + 1][x]
 
-        # If there is at least one empty position adjacent to the piece
         if 0 in adjacentPositions.values():
             return True
 
-        # Return True if any adjacent enemy piece could be captured by adding the new piece
         for (i, j), value in adjacentPositions.items():
             if value != piece and self.capturable(boardArray, i, j):
                 return True
 
-        # Check if adjacent friendly pieces have liberties
         for (i, j), value in adjacentPositions.items():
             if value == piece and not (i, j) in already_checked:
                 if self.free(boardArray, i, j, already_checked + [(x, y)]):
                     return True
 
-        # If no liberty was found, then return False
         return False
 
     def drawBoardSquares(self, painter):
@@ -197,19 +201,15 @@ class Board(QFrame):  # base the board on a QFrame widget
 
     def drawPieces(self, painter):
         '''draw the pieces on the board'''
-        # We define squareWidth and squareHeight once and for all to avoid having
-        # to compute it every time
         squareWidth = self.squareWidth()
         squareHeight = self.squareHeight()
         for row in range(0, len(self.boardArray)):
             for col in range(0, len(self.boardArray[0])):
-                # If there is a piece to display
                 square_content = self.boardArray[row][col]
                 if square_content > 0:
                     painter.save()
                     painter.translate(col * squareWidth, row * squareHeight)
 
-                    # The piece color depends on the player who owns it
                     a = 255 * square_content - 255
                     painter.setBrush(QBrush(QColor(a, a, a)))
 
