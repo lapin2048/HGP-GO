@@ -5,8 +5,14 @@ from PyQt6.QtWidgets import (
     QLabel,
     QHBoxLayout,
     QPushButton,
+    QSizePolicy,
+    QSpacerItem,
+    QGridLayout,
 )
-from PyQt6.QtCore import pyqtSignal, pyqtSlot
+from board import Board
+from game_logic import GoGame
+from PyQt6.QtCore import pyqtSignal, pyqtSlot, Qt
+from PyQt6.QtWidgets import QDockWidget, QVBoxLayout, QLabel, QWidget, QSpacerItem, QSizePolicy, QPushButton, QHBoxLayout
 
 
 class ScoreBoard(QDockWidget):
@@ -20,65 +26,68 @@ class ScoreBoard(QDockWidget):
         super().__init__()
         self.init_backend()
         self.initUI()
-        self.connectedBoard = None  # Reference to the game board
 
     def init_backend(self):
-        """Initialize backend score tracking fields."""
-        self.black_score = 0
-        self.white_score = 0
-        self.captured_black = 0  # Stones captured by White
-        self.captured_white = 0  # Stones captured by Black
-        self.territories = {"black": 0, "white": 0}
+        """Initialize game logic."""
+        from game_logic import GoGame
+        self.game_logic = GoGame(7)  # Initialize game logic with a 7x7 board
 
     def initUI(self):
         """Initialize ScoreBoard UI."""
-        self.resize(300, 400)
         self.setWindowTitle("ScoreBoard")
 
-        # Create main widget and layout
-        self.mainWidget = QWidget()
-        self.mainLayout = QVBoxLayout()
+        # Disable undocking
+        self.setFeatures(QDockWidget.DockWidgetFeature.NoDockWidgetFeatures)
 
-        # Add labels
-        self.label_clickLocation = QLabel("Click Location: ")
-        self.label_timeRemaining = QLabel("Time Remaining: ")
+        # Main vertical layout
+        mainLayout = QVBoxLayout()
+
+        # Add labels for stats (top row)
+        statsLayout = QHBoxLayout()
         self.label_blackScore = QLabel("Black Score: 0")
         self.label_whiteScore = QLabel("White Score: 0")
-        self.label_turn = QLabel("Turn: Black")
-        self.label_capturedBlack = QLabel("Captured Black: 0")
-        self.label_capturedWhite = QLabel("Captured White: 0")
-        self.label_territoryBlack = QLabel("Territory Black: 0")
-        self.label_territoryWhite = QLabel("Territory White: 0")
+        self.label_timeRemaining = QLabel("Time Remaining: ")
+        statsLayout.addWidget(self.label_blackScore, alignment=Qt.AlignmentFlag.AlignLeft)
+        statsLayout.addWidget(self.label_timeRemaining, alignment=Qt.AlignmentFlag.AlignCenter)
+        statsLayout.addWidget(self.label_whiteScore, alignment=Qt.AlignmentFlag.AlignRight)
+        mainLayout.addLayout(statsLayout)
 
-        # Add buttons
+        # Add current turn label
+        self.label_turn = QLabel("Turn: Black")  # Add label for player turn
+        self.label_turn.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        mainLayout.addWidget(self.label_turn)
+
+        # Add vertical spacer above the board
+        mainLayout.addSpacerItem(
+            QSpacerItem(20, 20, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Expanding)
+        )
+
+        # Center the board horizontally
+        boardLayout = QHBoxLayout()
+        from board import Board
+        self.board_widget = Board(parent=self, logic=self.game_logic)
+        self.board_widget.setMinimumSize(200, 200)
+        self.board_widget.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
+        boardLayout.addWidget(self.board_widget, alignment=Qt.AlignmentFlag.AlignCenter)
+        mainLayout.addLayout(boardLayout)
+
+        # Add vertical spacer below the board
+        mainLayout.addSpacerItem(
+            QSpacerItem(20, 20, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Expanding)
+        )
+
+        # Buttons for actions (bottom row)
+        buttonLayout = QHBoxLayout()
         self.button_pass = QPushButton("Pass Turn")
         self.button_restart = QPushButton("Restart Game")
+        buttonLayout.addWidget(self.button_pass)
+        buttonLayout.addWidget(self.button_restart)
+        mainLayout.addLayout(buttonLayout)
 
-        # Layout setup
-        self.mainLayout.addWidget(self.label_clickLocation)
-        self.mainLayout.addWidget(self.label_timeRemaining)
-
-        playerLayout = QHBoxLayout()
-        playerLayout.addWidget(self.label_blackScore)
-        playerLayout.addWidget(self.label_whiteScore)
-        self.mainLayout.addLayout(playerLayout)
-
-        capturedLayout = QHBoxLayout()
-        capturedLayout.addWidget(self.label_capturedBlack)
-        capturedLayout.addWidget(self.label_capturedWhite)
-        self.mainLayout.addLayout(capturedLayout)
-
-        territoryLayout = QHBoxLayout()
-        territoryLayout.addWidget(self.label_territoryBlack)
-        territoryLayout.addWidget(self.label_territoryWhite)
-        self.mainLayout.addLayout(territoryLayout)
-
-        self.mainLayout.addWidget(self.label_turn)
-        self.mainLayout.addWidget(self.button_pass)
-        self.mainLayout.addWidget(self.button_restart)
-
-        self.mainWidget.setLayout(self.mainLayout)
-        self.setWidget(self.mainWidget)
+        # Set the layout
+        centralWidget = QWidget()
+        centralWidget.setLayout(mainLayout)
+        self.setWidget(centralWidget)
 
     def make_connection(self, board):
         """Connect signals from the board to the ScoreBoard."""
