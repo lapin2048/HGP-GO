@@ -13,7 +13,7 @@ class ScoreBoard(QDockWidget):
     """ScoreBoard for managing game state and UI."""
 
     passTurnSignal = pyqtSignal()  # Emitted when a player passes their turn
-    restartGameSignal = pyqtSignal()  # Emitted to restart the game
+    resetGame = pyqtSignal()  # Emitted to restart the game
     endGameSignal = pyqtSignal(int)  # Emitted to declare a winner (0 for draw, 1/2 for player)
 
     def __init__(self):
@@ -78,9 +78,11 @@ class ScoreBoard(QDockWidget):
         self.connectedBoard = board
         board.clickLocationSignal.connect(self.setClickLocation)
         board.updateTimerSignal.connect(self.setTimeRemaining)
+        board.updateScoresSignal.connect(self.updateScores)
+        board.updateCapturedStonesSignal.connect(self.updateCapturedStones)
         self.button_pass.clicked.connect(self.skipTurn)
-        self.button_restart.clicked.connect(self.restartGameSignal.emit)
-
+        self.button_restart.clicked.connect(self.resetGame.emit)
+        
     @pyqtSlot(str)
     def setClickLocation(self, clickLoc):
         """Update click location display."""
@@ -113,10 +115,10 @@ class ScoreBoard(QDockWidget):
         self.label_turn.setText(f"Turn: {player} ({color})")
 
     def skipTurn(self):
-        """Handle player skipping their turn."""
         if not self.connectedBoard:
             return
 
+        self.passTurnSignal.emit()  # Emit signal for passing turn
         current_player = self.connectedBoard.player_turn
 
         # Update skip tracking
@@ -128,13 +130,9 @@ class ScoreBoard(QDockWidget):
 
         # Check end game conditions
         if self.skip_count >= 2:  # Consecutive skips
-            self.endGameSignal.emit(0)  # Emit a draw signal
-        elif self.skip_count >= 3:
-            self.endGameSignal.emit(3 - current_player)  # Opponent wins
-
-        # Emit signal for skipping turn
-        self.passTurnSignal.emit()
-
+            self.connectedBoard.logic.stop()  # Finalize game logic
+            self.connectedBoard.endGame()  # Trigger game over screen
+            
     def resetSkipTracking(self):
         """Reset skip tracking."""
         self.skip_count = 0

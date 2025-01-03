@@ -1,4 +1,4 @@
-from PyQt6.QtWidgets import QFrame, QLabel, QGraphicsOpacityEffect
+from PyQt6.QtWidgets import QFrame, QLabel, QGraphicsOpacityEffect, QMessageBox
 from PyQt6.QtCore import Qt, QTimer, pyqtSignal, QPoint, QSize, QPropertyAnimation
 from PyQt6.QtGui import QPainter, QColor, QBrush, QPixmap
 from piece import Piece
@@ -8,8 +8,10 @@ from game_logic import GoGame
 class Board(QFrame):
     updateTimerSignal = pyqtSignal(int)
     clickLocationSignal = pyqtSignal(str)
+    updateScoresSignal = pyqtSignal(int, int)
+    updateCapturedStonesSignal = pyqtSignal(int, int)
 
-    boardWidth = 9  # 9x9 Goban
+    boardWidth = 9
     boardHeight = 9
     player_turn = 1  # 1 for white, 2 for black
     isStarted = False
@@ -38,6 +40,12 @@ class Board(QFrame):
         self.hover_col = -1  # Default no hover
         self.setMouseTracking(True)  # Enable hover detection
         self.logic = GoGame((self.boardWidth))
+
+        # Initialize timer
+        self.timer = QTimer(self)
+        self.timer.timeout.connect(self.updateTimer)
+        self.timeRemaining = 300  # 5 minutes in seconds
+        self.timer.start(1000)  # Update every second
 
     def initBoard(self):
         """Initializes the board."""
@@ -77,12 +85,30 @@ class Board(QFrame):
         if self.logic.valid_position(row, col) and self.boardArray[row][col] == 0:
             self.boardArray[row][col] = self.player_turn
             captured_positions = self.logic.place_piece(row, col, self.player_turn)
+
             if captured_positions:
                 self.handleCapturedPieces(captured_positions)
+                # Notify the ScoreBoard of updated captured stones
+                if self.scoreBoard:
+                    black_captures = self.logic.captured_stones['black']
+                    white_captures = self.logic.captured_stones['white']
+                    self.updateCapturedStonesSignal.emit(black_captures, white_captures)
 
             # Toggle turn
             self.player_turn = 1 if self.player_turn == 2 else 2
             self.update()
+
+            # Update turn information in the ScoreBoard
+            if self.scoreBoard:
+                self.scoreBoard.updateTurn(self.player_turn)
+
+            # Check if the game should end
+            if self.logic.is_game_over():
+                self.endGame()
+
+            # Emit the click location signal
+            self.clickLocationSignal.emit(f"Row: {row}, Col: {col}")
+
 
     def mouseMoveEvent(self, event):
         square_width = self.squareWidth()
@@ -185,6 +211,12 @@ class Board(QFrame):
             animation.finished.connect(lambda: self.finishEraseAnimation(stone_label, row, col))
             animation.start()
 
+        # Emit the update captured stones signal
+        black_captures = self.logic.captured_stones['black']
+        white_captures = self.logic.captured_stones['white']
+        self.updateCapturedStonesSignal.emit(black_captures, white_captures)
+
+
     def finishEraseAnimation(self, stone_label, row, col):
         """
         Cleanup after the erase animation finishes.
@@ -228,3 +260,67 @@ class Board(QFrame):
 
         # Redraw the board
         self.update()
+
+
+    def endGame(self):
+        """
+        Ends the game, calculates the scores, and declares the winner.
+        """
+        # Stop the game logic
+        self.logic.stop()
+
+        # Calculate scores based on territory scoring
+        scores = self.logic.get_scores()
+        if self.scoreBoard:
+            self.scoreBoard.updateScores(scores['black'], scores['white'])
+            self.scoreBoard.updateTerritory(scores['black'], scores['white'])
+
+        white_score = scores["white"]
+        black_score = scores["black"]
+
+        # Determine the winner and construct the message
+        if white_score > black_score:
+            msg = f"White player wins by {white_score - black_score} points.\nWhite points: {white_score}\nBlack points: {black_score}"
+        elif black_score > white_score:
+            msg = f"Black player wins by {black_score - white_score} points.\nWhite points: {white_score}\nBlack points: {black_score}"
+        else:
+            msg = f"The game is a draw.\nWhite points: {white_score}\nBlack points: {black_score}"
+
+        # Display the result using a QMessageBox
+        message_box = QMessageBox()
+        message_box.setWindowTitle("Game Over")
+        message_box.setText(msg)
+        message_box.exec()
+
+        # Emit the update scores signal
+        self.updateScoresSignal.emit(black_score, white_score)
+
+
+    def reset(self):
+        self.initBoard()  # Reset the logical board state
+        self.captured_pieces = []  # Clear captured pieces
+        self.player_turn = 1  # Reset to player 1's turn
+        self.hover_row, self.hover_col = -1, -1  # Reset hover position
+
+        # Reset game logic
+        self.logic.reset_game()
+
+        # Update the ScoreBoard if linked
+        if self.scoreBoard:
+            self.scoreBoard.updateTurn(self.player_turn)
+            self.scoreBoard.updatePrisoners(0, 0)  # Reset captured stones
+            self.scoreBoard.updateTerritory(0, 0)  # Reset territory scores
+
+        # Redraw the board
+        self.update()
+        print("Game has been reset.")
+
+
+    def updateTimer(self):
+        """Update the timer and emit the signal."""
+        self.timeRemaining -= 1
+        if self.timeRemaining <= 0:
+            self.timer.stop()
+            self.endGame()
+        else:
+            self.updateTimerSignal.emit(self.timeRemaining)

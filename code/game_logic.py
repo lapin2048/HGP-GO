@@ -1,3 +1,5 @@
+from PyQt6.QtWidgets import QPushButton
+
 class GoGame:
     print("Game Logic Object Created")
 
@@ -253,4 +255,32 @@ class GoGame:
 
         # Return captured positions for further processing (e.g., score updates)
         return captured_positions
+
+
+    def stop(self):
+        """
+        Stops the game and finalizes the board state for scoring.
+        """
+        print("Stopping the game...")
+
+        # Calculate the territories for scoring
+        territories = self.calculate_territories()
+
+        # Calculate the final scores
+        final_scores = self.get_final_scores(territories)
+
+        # Display scores for debugging or use in UI
+        print(f"Final Scores - Black: {final_scores['black']}, White: {final_scores['white']}")
+
+        return final_scores
+    
+    def setupEndGameButton(self):
+        """
+        Adds an 'End Game' button to the UI.
+        """
+        end_game_button = QPushButton("End Game", self)
+        end_game_button.clicked.connect(self.endGame)
+        end_game_button.setGeometry(10, 10, 100, 30)  # Adjust position and size
+        end_game_button.show()
+
 

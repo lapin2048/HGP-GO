@@ -26,6 +26,7 @@ class Go(QMainWindow):
 
         # Connect signals
         self.Menu.newGameSignal.connect(self.startGame)
+        self.scoreBoard.button_restart.clicked.connect(self.resetGame) 
 
         # Window settings
         self.resize(800, 800)
@@ -53,7 +54,7 @@ class Go(QMainWindow):
 
     def resetGame(self):
         """Reset the game."""
-        self.board.resetGame()
+        self.board.reset()
         self.stackedWidget.setCurrentWidget(self.Menu)
 
     def endGame(self, winner):
