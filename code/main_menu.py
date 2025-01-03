@@ -8,7 +8,7 @@ from PyQt6.QtWidgets import (
     QMessageBox,
 )
 from PyQt6.QtCore import pyqtSignal, Qt, QSize
-
+from PyQt6.QtGui import QPalette, QBrush, QPixmap, QPen, QColor, QPainter
 
 class Menu(QWidget):
     newGameSignal = pyqtSignal()
@@ -18,6 +18,11 @@ class Menu(QWidget):
         self.initUI()
 
     def initUI(self):
+        # Set the initial background image
+        self.image_path = "../Assets/go_menu_background.png"  # Replace with your image path
+        self.setAutoFillBackground(True)
+        self.updateBackgroundImage()
+
         layout = QVBoxLayout()
 
         # Spacer to center content vertically
@@ -28,10 +33,8 @@ class Menu(QWidget):
         )
 
         # Welcome label
-        label = QLabel("Welcome to the Go Game!")
-        label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        label = OutlinedLabel("Welcome to the Go Game!", outline_width=2)
         label.setStyleSheet("font-size: 24px; font-weight: bold;")
-        label.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
         layout.addWidget(label)
 
         # Add a space between the label and the buttons
@@ -64,6 +67,22 @@ class Menu(QWidget):
 
         self.setLayout(layout)
 
+    def updateBackgroundImage(self):
+        """Updates the background image dynamically."""
+        palette = QPalette()
+        pixmap = QPixmap(self.image_path)
+
+        # Scale the image to fit the current window size
+        pixmap = pixmap.scaled(self.size(), Qt.AspectRatioMode.KeepAspectRatioByExpanding)
+
+        palette.setBrush(QPalette.ColorRole.Window, QBrush(pixmap))
+        self.setPalette(palette)
+
+    def resizeEvent(self, event):
+        """Handles the window resize event to update the background."""
+        self.updateBackgroundImage()
+        super().resizeEvent(event)
+
     def showRules(self):
         """Display a dialog with the rules of Go."""
         rules = (
@@ -80,3 +99,34 @@ class Menu(QWidget):
     def sizeHint(self):
         """Define a preferred size for the window."""
         return QSize(500, 300)
+
+class OutlinedLabel(QLabel):
+    def __init__(self, text, outline_width=4, parent=None):
+        super().__init__(parent)
+        self.text = text
+        self.outline_width = outline_width  # Set outline width
+        self.setAlignment(Qt.AlignmentFlag.AlignCenter)
+
+    def paintEvent(self, event):
+        """Custom painting for the label to add an outline."""
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+        font = painter.font()
+        font.setPointSize(24)  # Set font size
+        font.setBold(True)  # Set font bold
+        painter.setFont(font)
+
+        # Draw the outline by drawing text offset in multiple directions
+        outline_color = QColor("black")
+        painter.setPen(outline_color)
+        for dx in range(-self.outline_width, self.outline_width + 1):
+            for dy in range(-self.outline_width, self.outline_width + 1):
+                if dx != 0 or dy != 0:  # Skip the center
+                    painter.drawText(self.rect().adjusted(dx, dy, dx, dy), Qt.AlignmentFlag.AlignCenter, self.text)
+
+        # Draw the main text
+        text_color = QColor("white")
+        painter.setPen(text_color)
+        painter.drawText(self.rect(), Qt.AlignmentFlag.AlignCenter, self.text)
+
+        painter.end()
