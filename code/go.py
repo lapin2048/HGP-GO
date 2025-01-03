@@ -18,11 +18,10 @@ class Go(QMainWindow):
         # Initialize pages
         self.Menu = Menu()
         self.scoreBoard = ScoreBoard()  # Properly initialize ScoreBoard
-        self.board = Board(self, GoGame(9))  # Pass ScoreBoard to Board
 
-        # Add pages to stackedWidget
+        # Add Menu and ScoreBoard to stackedWidget
         self.stackedWidget.addWidget(self.Menu)
-        self.stackedWidget.addWidget(self.board)
+        self.stackedWidget.addWidget(self.scoreBoard)
 
         # Connect signals
         self.Menu.newGameSignal.connect(self.startGame)
@@ -43,21 +42,24 @@ class Go(QMainWindow):
         self.move(x, y)
 
     def startGame(self):
-        """Switch to the game board and start the game."""
-        self.stackedWidget.setCurrentWidget(self.board)
-        self.board.start_game()  # Ensure the board is reset for the new game
-        self.scoreBoard.make_connection(self.board)  # Link the board to the ScoreBoard
-        self.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, self.scoreBoard)
+        """Switch to the game view and start the game."""
+        self.stackedWidget.setCurrentWidget(self.scoreBoard)  # Switch to ScoreBoard
+
+        # Ensure the Board is initialized only in ScoreBoard
+        if not hasattr(self.scoreBoard, "board_widget"):
+            from board import Board
+            from game_logic import GoGame
+            self.scoreBoard.game_logic = GoGame(7)  # Initialize game logic
+            self.scoreBoard.board_widget = Board(parent=self.scoreBoard, logic=self.scoreBoard.game_logic)
+            self.scoreBoard.board_widget.setFixedSize(200, 200)
+            self.scoreBoard.layout().addWidget(self.scoreBoard.board_widget)
+            self.scoreBoard.layout().setAlignment(self.scoreBoard.board_widget, Qt.AlignmentFlag.AlignCenter)
+
+        self.scoreBoard.board_widget.logic.reset_game()  # Reset the game logic
         print("Game started: Player 1 vs Player 2")
 
+
     def resetGame(self):
-        """Reset the game."""
-        self.board.reset()  # Reset the board state
-        self.stackedWidget.setCurrentWidget(self.Menu)  # Go back to the menu
-
-    def endGame(self, winner):
-        """Handle endgame."""
-        winner_name = "Player 1" if winner == 1 else "Player 2"
-        QMessageBox.information(self, "Game Over", f"{winner_name} wins the game!")
-        self.resetGame()
-
+        """Reset the game to the initial state."""
+        self.scoreBoard.resetGame()
+        print("Game reset.")
