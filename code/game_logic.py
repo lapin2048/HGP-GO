@@ -50,21 +50,31 @@ class GoGame:
         self.current_player = 3 - self.current_player  # Switch turns
         self.pass_count = 0
         return captured_positions
+    
 
     def is_valid_move(self, row, col):
-        """
-        Check if placing a stone at the specified position is valid.
-        :param row: Row index.
-        :param col: Column index.
-        :return: True if the move is valid, False otherwise.
-        """
         if not self.is_within_bounds(row, col) or self.board[row][col].state != 0:
+            print(f"Move at ({row}, {col}) is out of bounds or the cell is occupied.")
             return False
 
+        # Simuler le placement pour vérifier les règles
         self.board[row][col].state = self.current_player
-        is_suicidal = self.is_suicide(row, col)
+
+        # Vérification des libertés (non-suicide)
+        if self.is_suicide(row, col):
+            print(f"Move at ({row}, {col}) is suicidal.")
+            self.board[row][col].state = 0
+            return False
+
+        # Vérification de la règle de Ko
+        snapshot = self.get_board_snapshot()
+        if snapshot in self.previous_states:
+            print(f"Move at ({row}, {col}) violates Ko rule.")
+            self.board[row][col].state = 0
+            return False
+
         self.board[row][col].state = 0
-        return not is_suicidal
+        return True
 
     def is_suicide(self, row, col):
         """
@@ -92,6 +102,8 @@ class GoGame:
                 if self.is_group_captured(nx, ny):
                     captured_positions.extend(self.remove_group(nx, ny))
 
+        if captured_positions:
+            print(f"Captured stones at: {captured_positions}")
         return captured_positions
 
     def is_within_bounds(self, row, col):

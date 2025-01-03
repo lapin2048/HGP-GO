@@ -4,21 +4,21 @@ from PyQt6.QtGui import QPainter, QPixmap, QColor, QBrush
 from piece import Piece
 from game_logic import GoGame
 
+
 class Board(QFrame):
     timerUpdated = pyqtSignal(int)
     positionClicked = pyqtSignal(str)
     clickLocationSignal = pyqtSignal(str)
     updateTimerSignal = pyqtSignal(int)  # Declare the signal
-    updateScoresSignal = pyqtSignal(int, int) # Declare the signal
+    updateScoresSignal = pyqtSignal(int, int)  # Declare the signal
     updateCapturedStonesSignal = pyqtSignal(int, int)
     updateTerritorySignal = pyqtSignal(int, int)
-
 
     GRID_SIZE = 9  # Default 9x9 board
 
     def __init__(self, parent=None, scoreboard=None):
         super().__init__(parent)
-        self.margin = 40
+        self.margin = 40  # Margin for better aesthetics
         self.scoreboard = scoreboard
         self.initialize_board()
         self.pending_moves = []
@@ -44,10 +44,10 @@ class Board(QFrame):
         self.grid = [[Piece(0, r, c) for c in range(self.GRID_SIZE)] for r in range(self.GRID_SIZE)]
 
     def square_width(self):
-        return self.contentsRect().width() / (self.GRID_SIZE - 1)
+        return (self.contentsRect().width() - 2 * self.margin) / (self.GRID_SIZE - 1)
 
     def square_height(self):
-        return self.contentsRect().height() / (self.GRID_SIZE - 1)
+        return (self.contentsRect().height() - 2 * self.margin) / (self.GRID_SIZE - 1)
 
     def paintEvent(self, event):
         painter = QPainter(self)
@@ -58,11 +58,16 @@ class Board(QFrame):
 
     def draw_background(self, painter):
         if not self.bg_image.isNull():
-            painter.drawPixmap(self.rect(), self.bg_image)
+            painter.drawPixmap(
+                self.margin, self.margin, 
+                self.width() - 2 * self.margin, 
+                self.height() - 2 * self.margin, 
+                self.bg_image
+            )
 
     def mousePressEvent(self, event):
-        grid_x = round(event.position().x() / self.square_width())
-        grid_y = round(event.position().y() / self.square_height())
+        grid_x = round((event.position().x() - self.margin) / self.square_width())
+        grid_y = round((event.position().y() - self.margin) / self.square_height())
         print(f"Click detected at grid position ({grid_x}, {grid_y})")
 
         if self.logic.is_within_bounds(grid_y, grid_x):
@@ -86,8 +91,8 @@ class Board(QFrame):
         move = self.pending_moves.pop(self.current_move_index)
         row, col = move["row"], move["col"]
         print(f"Confirming move at ({row}, {col}) for player {self.player_turn}")
+
         self.grid[row][col].change_state(self.player_turn)
-        print(f"Piece state changed to {self.grid[row][col].name}")
 
         captured = self.logic.execute_move(row, col, self.player_turn)
         if captured:
@@ -95,7 +100,6 @@ class Board(QFrame):
 
         self.switch_turn()
         self.update()
-
 
     def handle_captures(self, captured_positions):
         for row, col in captured_positions:
@@ -109,13 +113,12 @@ class Board(QFrame):
     def draw_grid(self, painter):
         painter.setPen(Qt.GlobalColor.black)
         for col in range(self.GRID_SIZE):
-            x = int(col * self.square_width())
-            painter.drawLine(x, 0, x, self.height())
+            x = int(self.margin + col * self.square_width())
+            painter.drawLine(x, self.margin, x, self.height() - self.margin)
 
         for row in range(self.GRID_SIZE):
-            y = int(row * self.square_height())
-            painter.drawLine(0, y, self.width(), y)
-
+            y = int(self.margin + row * self.square_height())
+            painter.drawLine(self.margin, y, self.width() - self.margin, y)
 
     def draw_stones(self, painter):
         for row in range(self.GRID_SIZE):
@@ -128,11 +131,10 @@ class Board(QFrame):
                 else:
                     continue
 
-                center_x = int(col * self.square_width())
-                center_y = int(row * self.square_height())
+                center_x = int(self.margin + col * self.square_width())
+                center_y = int(self.margin + row * self.square_height())
                 size = int(min(self.square_width(), self.square_height()) * 0.8)
                 painter.drawPixmap(center_x - size // 2, center_y - size // 2, size, size, stone)
-
 
     def draw_hovered_stone(self, painter):
         row, col = self.hovered_cell
@@ -142,15 +144,14 @@ class Board(QFrame):
         stone = self.white_stone if self.player_turn == 1 else self.black_stone
         painter.setOpacity(0.5)
         size = int(min(self.square_width(), self.square_height()) * 0.8)
-        center_x = int(col * self.square_width())
-        center_y = int(row * self.square_height())
+        center_x = int(self.margin + col * self.square_width())
+        center_y = int(self.margin + row * self.square_height())
         painter.drawPixmap(center_x - size // 2, center_y - size // 2, size, size, stone)
         painter.setOpacity(1.0)
 
-
     def mouseMoveEvent(self, event):
-        grid_x = round(event.position().x() / self.square_width())
-        grid_y = round(event.position().y() / self.square_height())
+        grid_x = round((event.position().x() - self.margin) / self.square_width())
+        grid_y = round((event.position().y() - self.margin) / self.square_height())
 
         if self.logic.is_valid_move(grid_y, grid_x):
             self.hovered_cell = (grid_y, grid_x)
@@ -187,14 +188,11 @@ class Board(QFrame):
             self.switch_turn()
             self.update()
 
-
     def startTimer(self):
-        """Start a countdown timer."""
         self.remaining_time = 30
-        self.timer.start(1000)  # Timer updates every second
+        self.timer.start(1000)
 
     def updateTimer(self):
-        """Update the timer and emit the signal."""
         self.remaining_time -= 1
         self.updateTimerSignal.emit(self.remaining_time)
 
@@ -203,31 +201,4 @@ class Board(QFrame):
             print("Time's up!")
 
     def updateScores(self, player1_score, player2_score):
-        # Emit updated scores
         self.updateScoresSignal.emit(player1_score, player2_score)
-
-
-    def handleCapturedPieces(self, captured_positions):
-        """Handle and update captured pieces."""
-        captured_white = 0
-        captured_black = 0
-
-        for row, col in captured_positions:
-            piece = self.board[row][col]
-            if piece.state == 1:  # White stone
-                captured_white += 1
-            elif piece.state == 2:  # Black stone
-                captured_black += 1
-
-            piece.state = 0  # Clear the piece from the board
-
-        # Emit the signal with updated counts
-        self.updateCapturedStonesSignal.emit(captured_white, captured_black)
-        self.update()
-
-
-    def updateTerritory(self, territory_p1, territory_p2):
-        """Update territory counts for both players."""
-        self.label_territoryP1.setText(f"Territory Player 1 (White): {territory_p1}")
-        self.label_territoryP2.setText(f"Territory Player 2 (Black): {territory_p2}")
-        self.update()
