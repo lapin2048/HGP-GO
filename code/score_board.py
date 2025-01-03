@@ -13,15 +13,22 @@ class ScoreBoard(QDockWidget):
     """ScoreBoard for managing game state and UI."""
 
     passTurnSignal = pyqtSignal()  # Emitted when a player passes their turn
-    resetGame = pyqtSignal()  # Emitted to restart the game
+    resetGameSignal = pyqtSignal()  # Emitted to restart the game
     endGameSignal = pyqtSignal(int)  # Emitted to declare a winner (0 for draw, 1/2 for player)
 
     def __init__(self):
         super().__init__()
+        self.init_backend()
         self.initUI()
-        self.skip_count = 0  # Tracks consecutive skips
-        self.last_skipper = None  # Tracks the last player who skipped
         self.connectedBoard = None  # Reference to the game board
+
+    def init_backend(self):
+        """Initialize backend score tracking fields."""
+        self.black_score = 0
+        self.white_score = 0
+        self.captured_black = 0  # Stones captured by White
+        self.captured_white = 0  # Stones captured by Black
+        self.territories = {"black": 0, "white": 0}
 
     def initUI(self):
         """Initialize ScoreBoard UI."""
@@ -35,13 +42,13 @@ class ScoreBoard(QDockWidget):
         # Add labels
         self.label_clickLocation = QLabel("Click Location: ")
         self.label_timeRemaining = QLabel("Time Remaining: ")
-        self.label_player1 = QLabel("Player 1: 0")
-        self.label_player2 = QLabel("Player 2: 0")
-        self.label_turn = QLabel("Turn: Player 1")
-        self.label_capturedP1 = QLabel("Captured by P1: 0")
-        self.label_capturedP2 = QLabel("Captured by P2: 0")
-        self.label_territoryP1 = QLabel("Territory P1: 0")
-        self.label_territoryP2 = QLabel("Territory P2: 0")
+        self.label_blackScore = QLabel("Black Score: 0")
+        self.label_whiteScore = QLabel("White Score: 0")
+        self.label_turn = QLabel("Turn: Black")
+        self.label_capturedBlack = QLabel("Captured Black: 0")
+        self.label_capturedWhite = QLabel("Captured White: 0")
+        self.label_territoryBlack = QLabel("Territory Black: 0")
+        self.label_territoryWhite = QLabel("Territory White: 0")
 
         # Add buttons
         self.button_pass = QPushButton("Pass Turn")
@@ -52,18 +59,18 @@ class ScoreBoard(QDockWidget):
         self.mainLayout.addWidget(self.label_timeRemaining)
 
         playerLayout = QHBoxLayout()
-        playerLayout.addWidget(self.label_player1)
-        playerLayout.addWidget(self.label_player2)
+        playerLayout.addWidget(self.label_blackScore)
+        playerLayout.addWidget(self.label_whiteScore)
         self.mainLayout.addLayout(playerLayout)
 
         capturedLayout = QHBoxLayout()
-        capturedLayout.addWidget(self.label_capturedP1)
-        capturedLayout.addWidget(self.label_capturedP2)
+        capturedLayout.addWidget(self.label_capturedBlack)
+        capturedLayout.addWidget(self.label_capturedWhite)
         self.mainLayout.addLayout(capturedLayout)
 
         territoryLayout = QHBoxLayout()
-        territoryLayout.addWidget(self.label_territoryP1)
-        territoryLayout.addWidget(self.label_territoryP2)
+        territoryLayout.addWidget(self.label_territoryBlack)
+        territoryLayout.addWidget(self.label_territoryWhite)
         self.mainLayout.addLayout(territoryLayout)
 
         self.mainLayout.addWidget(self.label_turn)
@@ -79,12 +86,10 @@ class ScoreBoard(QDockWidget):
             raise ValueError("Invalid board instance provided for connection.")
 
         self.connectedBoard = board
-        board.clickLocationSignal.connect(self.setClickLocation)
+        board.positionClicked.connect(self.setClickLocation)
         board.updateTimerSignal.connect(self.setTimeRemaining)
-        board.updateScoresSignal.connect(self.updateScores)
-        board.updateCapturedStonesSignal.connect(self.updateCapturedStones)
         self.button_pass.clicked.connect(self.skipTurn)
-        self.button_restart.clicked.connect(self.resetGame.emit)
+        self.button_restart.clicked.connect(self.resetGameSignal.emit)
 
     @pyqtSlot(str)
     def setClickLocation(self, clickLoc):
@@ -96,60 +101,59 @@ class ScoreBoard(QDockWidget):
         """Update the timer label."""
         self.label_timeRemaining.setText(f"Time Remaining: {timeRemaining}s")
 
-    def updateScores(self, p1_score, p2_score):
-        """Update player scores."""
-        self.label_player1.setText(f"Player 1: {p1_score}")
-        self.label_player2.setText(f"Player 2: {p2_score}")
+    def add_score(self, player, points):
+        """Add points to a player's score (1=Black, -1=White)."""
+        if player == 1:
+            self.black_score += points
+        else:
+            self.white_score += points
+        self.updateScores()
 
-    def updateCapturedStones(self, captured_white, captured_black):
-        """Update captured stones count."""
-        if not self.connectedBoard:
-            print("No board connected. Cannot update captured stones.")
-            return
-        self.label_capturedP1.setText(f"Captured by White: {captured_white}")
-        self.label_capturedP2.setText(f"Captured by Black: {captured_black}")
+    def add_captured_stone(self, player):
+        """Increment the count of stones captured by the opponent."""
+        if player == 1:
+            self.captured_white += 1
+        else:
+            self.captured_black += 1
+        self.updateScores()
 
-    def updateTerritory(self, territory_p1, territory_p2):
-        """Update territory information."""
-        self.label_territoryP1.setText(f"Territory P1: {territory_p1}")
-        self.label_territoryP2.setText(f"Territory P2: {territory_p2}")
+    def update_territory(self, player, points):
+        """Update the territory count for a player (1=Black, -1=White)."""
+        if player == 1:
+            self.territories["black"] += points
+        else:
+            self.territories["white"] += points
+        self.updateScores()
+
+    def calculate_final_score(self, komi=6.5):
+        """Calculate the final score including captured stones and territory."""
+        final_black_score = self.black_score + self.captured_black + self.territories["black"]
+        final_white_score = self.white_score + self.captured_white + self.territories["white"] + komi
+        return {"black": final_black_score, "white": final_white_score}
+
+    def resetGame(self):
+        """Reset all scores and update the UI."""
+        self.init_backend()
+        self.updateScores()
+        self.label_turn.setText("Turn: Black")
+        self.label_timeRemaining.setText("Time Remaining: ")
+        self.label_clickLocation.setText("Click Location: ")
+
+    def updateScores(self):
+        """Update the UI with the current scores."""
+        self.label_blackScore.setText(f"Black Score: {self.black_score}")
+        self.label_whiteScore.setText(f"White Score: {self.white_score}")
+        self.label_capturedBlack.setText(f"Captured Black: {self.captured_black}")
+        self.label_capturedWhite.setText(f"Captured White: {self.captured_white}")
+        self.label_territoryBlack.setText(f"Territory Black: {self.territories['black']}")
+        self.label_territoryWhite.setText(f"Territory White: {self.territories['white']}")
 
     def updateTurn(self, current_turn):
         """Update the turn label."""
-        player = "Player 1" if current_turn == 1 else "Player 2"
-        color = "White" if current_turn == 1 else "Black"
-        self.label_turn.setText(f"Turn: {player} ({color})")
+        player = "Black" if current_turn == 1 else "White"
+        self.label_turn.setText(f"Turn: {player}")
 
     def skipTurn(self):
-        if not self.connectedBoard:
-            return
-
-        self.passTurnSignal.emit()  # Emit signal for passing turn
-        current_player = self.connectedBoard.player_turn
-
-        # Update skip tracking
-        if self.last_skipper is None or self.last_skipper != current_player:
-            self.last_skipper = current_player
-            self.skip_count = 1
-        else:
-            self.skip_count += 1
-
-        # Check end game conditions
-        if self.skip_count >= 2:  # Consecutive skips
-            self.connectedBoard.logic.stop()  # Finalize game logic
-            self.connectedBoard.endGame()  # Trigger game over screen
-
-    def resetSkipTracking(self):
-        """Reset skip tracking."""
-        self.skip_count = 0
-        self.last_skipper = None
-
-    def updatePrisoners(self, prisoners_p1, prisoners_p2):
-        """Update captured stones for both players."""
-        self.label_capturedP1.setText(f"Captured by P1: {prisoners_p1}")
-        self.label_capturedP2.setText(f"Captured by P2: {prisoners_p2}")
-
-    def updateTerritory(self, territory_p1, territory_p2):
-        """Update territory for both players."""
-        self.label_territoryP1.setText(f"Territory P1: {territory_p1}")
-        self.label_territoryP2.setText(f"Territory P2: {territory_p2}")
+        """Handle the pass turn action."""
+        self.passTurnSignal.emit()
+        self.updateTurn(self.connectedBoard.logic.current_player)

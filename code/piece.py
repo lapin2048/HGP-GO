@@ -1,39 +1,42 @@
+
 class Piece:
-    """
-    Piece implementation for a Go game.
-    No piece state = 0
-    White piece state = 1
-    Black piece state = 2
-    """
+    def __init__(self, color, position):
+        """
+        Initialize a Piece with a color and position.
+        :param color: 1 for Black, -1 for White
+        :param position: Tuple (row, col)
+        """
+        self.color = color  # 1 for Black, -1 for White
+        self.position = position  # (row, col)
+        self.liberties = set()  # adjacent empty intersections
+        self.group = None  # reference to the group this piece belongs to
 
-    def __init__(self, state: int, row: int | None = None, col: int | None = None):
+    def set_liberties(self, liberties):
         """
-        Initialize a piece with its state and position.
-        :param state: 0 for empty, 1 for White, 2 for Black.
-        :param row: The row position of the piece.
-        :param col: The column position of the piece.
+        Set the liberties of this piece.
+        :param liberties: set of (row, col) positions
         """
-        self.state = state
-        self.position = (row, col)
-        self.__all_states = {0: "No Piece", 1: "White", 2: "Black"}
-        self.name = self.__all_states[self.state]
+        self.liberties = liberties
 
-    def change_state(self, new_state: int):
+    def remove_liberty(self, position):
         """
-        Change the state of the piece.
-        :param new_state: The new state for the piece.
+        Remove one liberty from the set.
         """
-        if new_state != self.state:
-            self.state = new_state
-            self.name = self.__all_states[self.state]
-        else:
-            raise ValueError(
-                f"Cannot change piece at {self.position} to the same state ({self.__all_states[new_state]})."
-            )
+        if position in self.liberties:
+            self.liberties.remove(position)
 
-    def __str__(self):
-        """String representation of the piece for debugging."""
-        return f"{self.name} at {self.position}"
+    def add_liberty(self, position):
+        """
+        Add one liberty to the set.
+        """
+        self.liberties.add(position)
+
+    def is_captured(self):
+        """
+        Determine if the piece has zero liberties.
+        """
+        return len(self.liberties) == 0
 
     def __repr__(self):
-        return self.__str__()
+        color_str = "Black" if self.color == 1 else "White"
+        return f"Piece({color_str}, Position={self.position}, Liberties={len(self.liberties)})"
