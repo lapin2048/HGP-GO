@@ -47,7 +47,8 @@ class Menu(QWidget):
         button_new_game.setStyleSheet(
             "font-size: 16px; padding: 10px; background-color: #5cb85c; color: white; border-radius: 5px;"
         )
-        layout.addWidget(button_new_game)
+        button_new_game.setMaximumSize(500, 500)  # Set max width and height
+        layout.addWidget(button_new_game, alignment=Qt.AlignmentFlag.AlignCenter)
 
         # "How to Play" button
         button_rules = QPushButton("How to Play")
@@ -56,7 +57,8 @@ class Menu(QWidget):
         button_rules.setStyleSheet(
             "font-size: 16px; padding: 10px; background-color: #0275d8; color: white; border-radius: 5px;"
         )
-        layout.addWidget(button_rules)
+        button_rules.setMaximumSize(500, 500)  # Set max width and height
+        layout.addWidget(button_rules, alignment=Qt.AlignmentFlag.AlignCenter)
 
         # Spacer to center content vertically
         layout.addSpacerItem(
