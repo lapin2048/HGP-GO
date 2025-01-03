@@ -1,286 +1,239 @@
-from PyQt6.QtWidgets import QPushButton
+from piece import Piece
+from copy import deepcopy
+from PyQt6.QtWidgets import QMessageBox
 
 class GoGame:
-    print("Game Logic Object Created")
-
-    def __init__(self, board_size):
+    def __init__(self, board, board_size, komi=6.5):
+        """
+        Initialize the game logic.
+        :param board_size: The size of the Go board (e.g., 9 for a 9x9 board).
+        :param komi: Compensation points for the white player.
+        """
+        self.board = board
         self.board_size = board_size
+        self.komi = komi
         self.reset_game()
 
     def reset_game(self):
-        self.board = [[0 for _ in range(self.board_size)] for _ in range(self.board_size)]
-        self.current_player = 1  # 1 for Black, -1 for White
+        """
+        Reset the game state and initialize the board.
+        """
+        print("Game Reset", self.board_size)
+        self.board = [[Piece(0, row, col) for col in range(self.board_size)] for row in range(self.board_size)]
+        self.current_player = 1  # 1 for Black, 2 for White
+        self.previous_states = []  # Keep track of previous board states for Ko rule
+        self.captured_stones = {1: 0, 2: 0}  # Track captured stones for each player
         self.pass_count = 0
-        self.black_score = 0
-        self.white_score = 0
-        self.previous_states = []  # For KO rule prevention
-        self.captured_stones = {"black": 0, "white": 0}
-
-    def get_board_state_snapshot(self):
-        return tuple(tuple(row) for row in self.board)
-
-    def get_board_state(self):
-        return {(r, c): self.board[r][c] for r in range(self.board_size) for c in range(self.board_size) if self.board[r][c] != 0}
+        self.game_active = True
 
     def place_stone(self, row, col):
-        if not (0 <= row < self.board_size and 0 <= col < self.board_size):
-            return None
-        if self.board[row][col] != 0:
+        """
+        Place a stone on the board if the move is valid.
+        :param row: Row index.
+        :param col: Column index.
+        :return: List of captured positions or None if the move is invalid.
+        """
+        if not self.is_valid_move(row, col):
             return None
 
-        self.board[row][col] = self.current_player
-        if self.is_suicide(row, col):
-            self.board[row][col] = 0
-            return None
-
+        self.board[row][col].state = self.current_player
         captured_positions = self.capture_stones(row, col)
 
-        snapshot = self.get_board_state_snapshot()
-        if snapshot in self.previous_states:
-            self.board[row][col] = 0
+        # Check Ko rule
+        board_snapshot = self.get_board_snapshot()
+        if board_snapshot in self.previous_states:
+            self.board[row][col].state = 0
             for r, c in captured_positions:
-                self.board[r][c] = -self.current_player
+                self.board[r][c].state = 3 - self.current_player
             return None
 
-        self.previous_states.append(snapshot)
+        self.previous_states.append(board_snapshot)
+        self.current_player = 3 - self.current_player  # Switch turns
         self.pass_count = 0
-        self.current_player = -self.current_player
         return captured_positions
 
-    def capture_stones(self, boardArray, x, y):
-        """Capture any opponent stones that have no liberties."""
-        captured_positions = []
-        opponent = 2 if boardArray[y][x] == 1 else 1
-        w, h = len(boardArray[0]), len(boardArray)
+    def is_valid_move(self, row, col):
+        """
+        Check if placing a stone at the specified position is valid.
+        :param row: Row index.
+        :param col: Column index.
+        :return: True if the move is valid, False otherwise.
+        """
+        if not self.is_within_bounds(row, col) or self.board[row][col].state != 0:
+            return False
 
-        for dx, dy in [(-1, 0), (1, 0), (0, -1), (0, 1)]:
-            nx, ny = x + dx, y + dy
-            if 0 <= nx < w and 0 <= ny < h and boardArray[ny][nx] == opponent:
-                if self.capturable(boardArray, nx, ny):
-                    # Remove all stones in the captured group
-                    captured_positions.extend(self.remove_group(boardArray, nx, ny))
-
-        return captured_positions
-    
-    def remove_group(self, boardArray, x, y):
-        """Remove a group of stones and return their positions."""
-        group = []
-        stack = [(x, y)]
-        piece = boardArray[y][x]
-
-        while stack:
-            cx, cy = stack.pop()
-            if (cx, cy) not in group:
-                group.append((cx, cy))
-                boardArray[cy][cx] = 0  # Remove stone
-
-                for dx, dy in [(-1, 0), (1, 0), (0, -1), (0, 1)]:
-                    nx, ny = cx + dx, cy + dy
-                    if 0 <= nx < len(boardArray[0]) and 0 <= ny < len(boardArray) and boardArray[ny][nx] == piece:
-                        stack.append((nx, ny))
-
-        return group
-
-
-
-    def remove_group(self, row, col):
-        group = self._get_group(row, col)
-        for r, c in group:
-            self.board[r][c] = 0
-        self.captured_stones["black" if self.current_player == 1 else "white"] += len(group)
-        return group
+        self.board[row][col].state = self.current_player
+        is_suicidal = self.is_suicide(row, col)
+        self.board[row][col].state = 0
+        return not is_suicidal
 
     def is_suicide(self, row, col):
+        """
+        Determine if placing a stone results in a suicidal move.
+        :param row: Row index.
+        :param col: Column index.
+        :return: True if the move is suicidal, False otherwise.
+        """
         visited = set()
-        return self.count_liberties(row, col, visited) == 0 and not any(
-            self.board[r][c] == -self.current_player and self.count_liberties(r, c) == 0 for r, c in self.get_neighbors(row, col)
-        )
+        return self.count_liberties(row, col, visited) == 0
 
-    def count_liberties(self, row, col, visited=None):
-        if visited is None:
-            visited = set()
-        if (row, col) in visited or not (0 <= row < self.board_size and 0 <= col < self.board_size):
+    def capture_stones(self, row, col):
+        """
+        Capture opponent stones if they have no liberties.
+        :param row: Row index of the placed stone.
+        :param col: Column index of the placed stone.
+        :return: List of captured positions.
+        """
+        opponent = 3 - self.current_player
+        captured_positions = []
+
+        for dx, dy in [(-1, 0), (1, 0), (0, -1), (0, 1)]:
+            nx, ny = row + dx, col + dy
+            if self.is_within_bounds(nx, ny) and self.board[nx][ny].state == opponent:
+                if self.is_group_captured(nx, ny):
+                    captured_positions.extend(self.remove_group(nx, ny))
+
+        return captured_positions
+
+    def is_within_bounds(self, row, col):
+        """
+        Check if a position is within the board boundaries.
+        :param row: Row index.
+        :param col: Column index.
+        :return: True if within bounds, False otherwise.
+        """
+        return 0 <= row < self.board_size and 0 <= col < self.board_size
+
+    def is_group_captured(self, row, col):
+        """
+        Check if a group of stones is captured.
+        :param row: Row index.
+        :param col: Column index.
+        :return: True if the group is captured, False otherwise.
+        """
+        visited = set()
+        return self.count_liberties(row, col, visited) == 0
+
+    def count_liberties(self, row, col, visited):
+        """
+        Count the liberties of a group of stones.
+        :param row: Row index.
+        :param col: Column index.
+        :param visited: Set of visited positions.
+        :return: Number of liberties.
+        """
+        if (row, col) in visited:
             return 0
-        if self.board[row][col] == 0:
+        if not self.is_within_bounds(row, col):
+            return 0
+        if self.board[row][col].state == 0:
             return 1
-        if self.board[row][col] != self.current_player:
+        if self.board[row][col].state != self.current_player:
             return 0
 
         visited.add((row, col))
-        return sum(self.count_liberties(r, c, visited) for r, c in self.get_neighbors(row, col))
+        liberties = 0
+        for dx, dy in [(-1, 0), (1, 0), (0, -1), (0, 1)]:
+            liberties += self.count_liberties(row + dx, col + dy, visited)
+        return liberties
 
-    def get_neighbors(self, row, col):
-        neighbors = []
-        if row > 0:
-            neighbors.append((row - 1, col))
-        if row < self.board_size - 1:
-            neighbors.append((row + 1, col))
-        if col > 0:
-            neighbors.append((row, col - 1))
-        if col < self.board_size - 1:
-            neighbors.append((row, col + 1))
-        return neighbors
+    def remove_group(self, row, col):
+        """
+        Remove a group of stones from the board.
+        :param row: Row index.
+        :param col: Column index.
+        :return: List of removed stone positions.
+        """
+        stack = [(row, col)]
+        player = self.board[row][col].state
+        captured = []
+
+        while stack:
+            x, y = stack.pop()
+            if (x, y) in captured:
+                continue
+            captured.append((x, y))
+            self.board[x][y].state = 0
+
+            for dx, dy in [(-1, 0), (1, 0), (0, -1), (0, 1)]:
+                nx, ny = x + dx, y + dy
+                if self.is_within_bounds(nx, ny) and self.board[nx][ny].state == player:
+                    stack.append((nx, ny))
+
+        self.captured_stones[3 - player] += len(captured)
+        return captured
+
+    def get_board_snapshot(self):
+        """
+        Get a snapshot of the board state for Ko rule.
+        :return: Tuple representation of the board state.
+        """
+        return tuple(tuple(piece.state for piece in row) for row in self.board)
 
     def pass_turn(self):
+        """
+        Pass the current player's turn.
+        If both players pass consecutively, the game ends.
+        """
         self.pass_count += 1
-        self.current_player = -self.current_player
+        if self.pass_count >= 2:
+            self.end_game()
+        else:
+            self.current_player = 3 - self.current_player
 
-    def is_game_over(self):
-        return self.pass_count >= 2
+    def end_game(self):
+        """
+        End the game and calculate the final scores.
+        """
+        self.game_active = False
+        scores = self.calculate_scores()
+        print(f"Game Over: Black - {scores['black']}, White - {scores['white']}")
 
-    def undo_stone(self, row, col, color_of_move, captured_positions):
-        self.board[row][col] = 0
-        for r, c in captured_positions:
-            self.board[r][c] = -color_of_move
-        self.captured_stones["black" if color_of_move == 1 else "white"] -= len(captured_positions)
-        self.current_player = color_of_move
-        self.previous_states.pop()
-
-    def calculate_territories(self):
+    def calculate_scores(self):
+        """
+        Calculate the final scores for both players.
+        :return: Dictionary with scores for Black and White.
+        """
         visited = set()
-        territories = {'black': 0, 'white': 0}
-        for r in range(self.board_size):
-            for c in range(self.board_size):
-                if (r, c) not in visited and self.board[r][c] == 0:
-                    territory, owner = self._explore_territory(r, c, visited)
-                    if owner == 1:
-                        territories['black'] += territory
-                    elif owner == -1:
-                        territories['white'] += territory
-        return territories
+        territories = {1: 0, 2: 0}
 
-    def _explore_territory(self, row, col, visited):
-        queue = [(row, col)]
+        for row in range(self.board_size):
+            for col in range(self.board_size):
+                if (row, col) not in visited and self.board[row][col].state == 0:
+                    territory, owner = self.explore_territory(row, col, visited)
+                    if owner:
+                        territories[owner] += territory
+
+        territories[1] += self.captured_stones[1]
+        territories[2] += self.captured_stones[2] + self.komi
+        return {"black": territories[1], "white": territories[2]}
+
+    def explore_territory(self, row, col, visited):
+        """
+        Explore a territory to determine its owner.
+        :param row: Row index.
+        :param col: Column index.
+        :param visited: Set of visited positions.
+        :return: Tuple containing the size of the territory and its owner.
+        """
+        stack = [(row, col)]
         territory = 0
         borders = set()
-        while queue:
-            r, c = queue.pop()
-            if (r, c) in visited:
+
+        while stack:
+            x, y = stack.pop()
+            if (x, y) in visited:
                 continue
-            visited.add((r, c))
-            if self.board[r][c] == 0:
+            visited.add((x, y))
+
+            if self.board[x][y].state == 0:
                 territory += 1
-                queue.extend(self.get_neighbors(r, c))
+                for dx, dy in [(-1, 0), (1, 0), (0, -1), (0, 1)]:
+                    nx, ny = x + dx, y + dy
+                    if self.is_within_bounds(nx, ny):
+                        stack.append((nx, ny))
             else:
-                borders.add(self.board[r][c])
-        if len(borders) == 1:
-            return territory, borders.pop()
-        return territory, 0
+                borders.add(self.board[x][y].state)
 
-    def get_current_player(self):
-        return self.current_player
-
-    def get_scores(self):
-        territories = self.calculate_territories()
-        return {
-            'black': self.captured_stones['black'] + territories['black'],
-            'white': self.captured_stones['white'] + territories['white']
-        }
-
-    def get_final_scores(self, territories):
-        scores = self.get_scores()
-        scores['white'] += 6.5  # Komi
-        return scores
-    def valid_position(self, row, col):
-        """
-        Check if the given position (row, col) is valid for placing a stone.
-        :param row: The row index of the position.
-        :param col: The column index of the position.
-        :return: True if the position is valid, False otherwise.
-        """
-        # Check if the position is within board boundaries
-        if not (0 <= row < self.board_size and 0 <= col < self.board_size):
-            return False
-
-        # Check if the position is empty
-        if self.board[row][col] != 0:
-            return False
-
-        # Temporarily place the stone to simulate the move
-        self.board[row][col] = self.current_player
-
-        # Check for suicide
-        if self.is_suicide(row, col):
-            self.board[row][col] = 0  # Revert the move
-            return False
-
-        # Check for Ko rule violation
-        snapshot = self.get_board_state_snapshot()
-        if snapshot in self.previous_states:
-            self.board[row][col] = 0  # Revert the move
-            return False
-
-        # Revert the move as all checks passed
-        self.board[row][col] = 0
-        return True
-        
-
-    def place_piece(self, row, col, player):
-        """
-        Place a piece on the board at the specified position if the move is valid.
-        :param row: The row index where the piece is placed.
-        :param col: The column index where the piece is placed.
-        :param player: The current player (1 for Black, -1 for White).
-        :return: List of captured positions if the move is valid, or None if invalid.
-        """
-        # Check if the move is valid
-        if not self.valid_position(row, col):
-            print(f"Invalid move by Player {player} at ({row}, {col}).")
-            return None
-
-        # Place the piece
-        self.board[row][col] = player
-
-        # Capture opponent stones
-        captured_positions = []
-        for neighbor_row, neighbor_col in self.get_neighbors(row, col):
-            if self.board[neighbor_row][neighbor_col] == -player:  # Opponent's stone
-                if self.count_liberties(neighbor_row, neighbor_col) == 0:
-                    captured_positions.extend(self.remove_group(neighbor_row, neighbor_col))
-
-        # Check for Ko rule violation
-        snapshot = self.get_board_state_snapshot()
-        if snapshot in self.previous_states:
-            print("Move violates the Ko rule. Reverting move.")
-            # Undo the move
-            self.board[row][col] = 0
-            for r, c in captured_positions:
-                self.board[r][c] = -player
-            return None
-
-        # Update game state
-        self.previous_states.append(snapshot)
-        self.pass_count = 0
-        self.current_player = -player  # Switch to the other player
-
-        # Return captured positions for further processing (e.g., score updates)
-        return captured_positions
-
-
-    def stop(self):
-        """
-        Stops the game and finalizes the board state for scoring.
-        """
-        print("Stopping the game...")
-
-        # Calculate the territories for scoring
-        territories = self.calculate_territories()
-
-        # Calculate the final scores
-        final_scores = self.get_final_scores(territories)
-
-        # Display scores for debugging or use in UI
-        print(f"Final Scores - Black: {final_scores['black']}, White: {final_scores['white']}")
-
-        return final_scores
-    
-    def setupEndGameButton(self):
-        """
-        Adds an 'End Game' button to the UI.
-        """
-        end_game_button = QPushButton("End Game", self)
-        end_game_button.clicked.connect(self.endGame)
-        end_game_button.setGeometry(10, 10, 100, 30)  # Adjust position and size
-        end_game_button.show()
-
-
+        owner = borders.pop() if len(borders) == 1 else 0
+        return territory, owner

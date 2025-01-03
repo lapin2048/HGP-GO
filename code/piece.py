@@ -1,33 +1,39 @@
 class Piece:
-    def __init__(self, row, col, color):
-        """
-        Initialize a piece with its position and color.
-        :param row: Row position of the piece.
-        :param col: Column position of the piece.
-        :param color: 1 for Black, -1 for White, 0 for empty.
-        """
-        self.row = row
-        self.col = col
-        self.color = color
-        self.captured = False
+    """
+    Piece implementation for a Go game.
+    No piece state = 0
+    White piece state = 1
+    Black piece state = 2
+    """
 
-    def capture(self):
+    def __init__(self, state: int, row: int | None = None, col: int | None = None):
         """
-        Mark the piece as captured.
+        Initialize a piece with its state and position.
+        :param state: 0 for empty, 1 for White, 2 for Black.
+        :param row: The row position of the piece.
+        :param col: The column position of the piece.
         """
-        self.captured = True
+        self.state = state
+        self.position = (row, col)
+        self.__all_states = {0: "No Piece", 1: "White", 2: "Black"}
+        self.name = self.__all_states[self.state]
 
-    def release(self):
+    def change_state(self, new_state: int):
         """
-        Unmark the piece as captured.
+        Change the state of the piece.
+        :param new_state: The new state for the piece.
         """
-        self.captured = False
+        if new_state != self.state:
+            self.state = new_state
+            self.name = self.__all_states[self.state]
+        else:
+            raise ValueError(
+                f"Cannot change piece at {self.position} to the same state ({self.__all_states[new_state]})."
+            )
 
     def __str__(self):
-        """
-        String representation of the piece for debugging.
-        """
-        return f"Piece(row={self.row}, col={self.col}, color={'Black' if self.color == 1 else 'White' if self.color == -1 else 'Empty'})"
+        """String representation of the piece for debugging."""
+        return f"{self.name} at {self.position}"
 
     def __repr__(self):
         return self.__str__()

@@ -75,6 +75,9 @@ class ScoreBoard(QDockWidget):
 
     def make_connection(self, board):
         """Connect signals from the board to the ScoreBoard."""
+        if not board:
+            raise ValueError("Invalid board instance provided for connection.")
+
         self.connectedBoard = board
         board.clickLocationSignal.connect(self.setClickLocation)
         board.updateTimerSignal.connect(self.setTimeRemaining)
@@ -82,7 +85,7 @@ class ScoreBoard(QDockWidget):
         board.updateCapturedStonesSignal.connect(self.updateCapturedStones)
         self.button_pass.clicked.connect(self.skipTurn)
         self.button_restart.clicked.connect(self.resetGame.emit)
-        
+
     @pyqtSlot(str)
     def setClickLocation(self, clickLoc):
         """Update click location display."""
@@ -98,10 +101,13 @@ class ScoreBoard(QDockWidget):
         self.label_player1.setText(f"Player 1: {p1_score}")
         self.label_player2.setText(f"Player 2: {p2_score}")
 
-    def updateCapturedStones(self, captured_p1, captured_p2):
+    def updateCapturedStones(self, captured_white, captured_black):
         """Update captured stones count."""
-        self.label_capturedP1.setText(f"Captured by P1: {captured_p1}")
-        self.label_capturedP2.setText(f"Captured by P2: {captured_p2}")
+        if not self.connectedBoard:
+            print("No board connected. Cannot update captured stones.")
+            return
+        self.label_capturedP1.setText(f"Captured by White: {captured_white}")
+        self.label_capturedP2.setText(f"Captured by Black: {captured_black}")
 
     def updateTerritory(self, territory_p1, territory_p2):
         """Update territory information."""
@@ -109,7 +115,7 @@ class ScoreBoard(QDockWidget):
         self.label_territoryP2.setText(f"Territory P2: {territory_p2}")
 
     def updateTurn(self, current_turn):
-        """Update the turn display."""
+        """Update the turn label."""
         player = "Player 1" if current_turn == 1 else "Player 2"
         color = "White" if current_turn == 1 else "Black"
         self.label_turn.setText(f"Turn: {player} ({color})")
@@ -132,17 +138,11 @@ class ScoreBoard(QDockWidget):
         if self.skip_count >= 2:  # Consecutive skips
             self.connectedBoard.logic.stop()  # Finalize game logic
             self.connectedBoard.endGame()  # Trigger game over screen
-            
+
     def resetSkipTracking(self):
         """Reset skip tracking."""
         self.skip_count = 0
         self.last_skipper = None
-
-    def updateTurn(self, current_turn):
-        """Update the turn label."""
-        player = "Player 1" if current_turn == 1 else "Player 2"
-        color = "White" if current_turn == 1 else "Black"
-        self.label_turn.setText(f"Turn: {player} ({color})")
 
     def updatePrisoners(self, prisoners_p1, prisoners_p2):
         """Update captured stones for both players."""

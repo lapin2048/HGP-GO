@@ -46,7 +46,7 @@ class Go(QMainWindow):
     def startGame(self):
         """Switch to the game board and start the game."""
         self.stackedWidget.setCurrentWidget(self.board)
-        self.board.start()
+        self.board.start_game()
         self.scoreBoard.make_connection(self.board)
         self.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, self.scoreBoard)
         print("Game started: Player 1 vs Player 2")
