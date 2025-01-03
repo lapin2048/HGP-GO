@@ -13,6 +13,7 @@ from board import Board
 from game_logic import GoGame
 from PyQt6.QtCore import pyqtSignal, pyqtSlot, Qt
 from PyQt6.QtWidgets import QDockWidget, QVBoxLayout, QLabel, QWidget, QSpacerItem, QSizePolicy, QPushButton, QHBoxLayout
+from PyQt6.QtGui import QFont
 
 
 class ScoreBoard(QDockWidget):
@@ -80,6 +81,10 @@ class ScoreBoard(QDockWidget):
         buttonLayout = QHBoxLayout()
         self.button_pass = QPushButton("Pass Turn")
         self.button_restart = QPushButton("Restart Game")
+        font = QFont()
+        font.setPointSize(16)  # Text size in points
+        self.button_pass.setFont(font)
+        self.button_restart.setFont(font)
         buttonLayout.addWidget(self.button_pass)
         buttonLayout.addWidget(self.button_restart)
         mainLayout.addLayout(buttonLayout)
