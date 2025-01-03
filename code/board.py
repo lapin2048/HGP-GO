@@ -1,6 +1,6 @@
-from PyQt6.QtWidgets import QFrame, QMessageBox
-from PyQt6.QtCore import Qt, pyqtSignal, QTimer
-from PyQt6.QtGui import QPainter, QPixmap
+from PyQt6.QtWidgets import QFrame, QMessageBox, QSizePolicy
+from PyQt6.QtCore import Qt, pyqtSignal, QTimer, QSize
+from PyQt6.QtGui import QPainter, QPixmap, QColor
 
 
 class Board(QFrame):
@@ -10,7 +10,7 @@ class Board(QFrame):
     updateCapturedStonesSignal = pyqtSignal(int, int)
     updateTerritorySignal = pyqtSignal(int, int)
 
-    GRID_SIZE = 9  # Default 9x9 board
+    GRID_SIZE = 7  # Default 8x8 board
 
     def __init__(self, parent=None, logic=None):
         super().__init__(parent)
@@ -21,6 +21,8 @@ class Board(QFrame):
         self.logic = logic
         self.hovered_cell = (-1, -1)
         self.remaining_time = 30
+        self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
+        self.setMinimumSize(200, 200)  # Set a minimum size for the board
 
         # Load graphics
         self.bg_image = QPixmap("../Assets/background.png")
@@ -33,6 +35,16 @@ class Board(QFrame):
 
 
         self.setMouseTracking(True)  # Enable mouse hover detection
+    
+    def resizeEvent(self, event):
+        """Ensure the board maintains a 1:1 aspect ratio when resized."""
+        size = min(self.width(), self.height())
+        self.resize(size, size)
+        super().resizeEvent(event)
+
+    def sizeHint(self):
+        """Provide a preferred size for the board."""
+        return QSize(600, 600)  # Default size
 
     def square_width(self):
         return (self.contentsRect().width() - 2 * self.margin) / (self.GRID_SIZE - 1)
