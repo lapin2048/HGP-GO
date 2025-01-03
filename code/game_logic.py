@@ -1,7 +1,6 @@
 from piece import Piece
 from copy import deepcopy
 from PyQt6.QtWidgets import QMessageBox
-
 class GoGame:
     def __init__(self, board, board_size, komi=6.5):
         """
@@ -237,3 +236,14 @@ class GoGame:
 
         owner = borders.pop() if len(borders) == 1 else 0
         return territory, owner
+
+    def execute_move(self, row, col, player):
+        """
+        Execute a move on the board.
+        :param row: Row index.
+        :param col: Column index.
+        :param player: The player making the move.
+        :return: List of captured positions or None if the move is invalid.
+        """
+        print(f"Executing move at ({row}, {col}) for player {player}")
+        return self.place_stone(row, col)

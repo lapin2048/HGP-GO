@@ -63,6 +63,8 @@ class Board(QFrame):
     def mousePressEvent(self, event):
         grid_x = round(event.position().x() / self.square_width())
         grid_y = round(event.position().y() / self.square_height())
+        print(f"Click detected at grid position ({grid_x}, {grid_y})")
+
         if self.logic.is_within_bounds(grid_y, grid_x):
             self.positionClicked.emit(f"Clicked on cell {grid_y}, {grid_x}")
             self.clickLocationSignal.emit(f"{grid_y}, {grid_x}")
@@ -71,7 +73,11 @@ class Board(QFrame):
             move = {"row": grid_y, "col": grid_x, "player": self.player_turn}
             self.pending_moves.append(move)
             self.current_move_index = len(self.pending_moves) - 1
+            print(f"Valid move at ({grid_y}, {grid_x}) for player {self.player_turn}")
+            self.confirm_move()  # Automatically confirm the move
             self.update()
+        else:
+            print(f"Invalid move at ({grid_y}, {grid_x})")
 
     def confirm_move(self):
         if self.current_move_index == -1:
@@ -79,7 +85,9 @@ class Board(QFrame):
 
         move = self.pending_moves.pop(self.current_move_index)
         row, col = move["row"], move["col"]
+        print(f"Confirming move at ({row}, {col}) for player {self.player_turn}")
         self.grid[row][col].change_state(self.player_turn)
+        print(f"Piece state changed to {self.grid[row][col].name}")
 
         captured = self.logic.execute_move(row, col, self.player_turn)
         if captured:
@@ -87,6 +95,7 @@ class Board(QFrame):
 
         self.switch_turn()
         self.update()
+
 
     def handle_captures(self, captured_positions):
         for row, col in captured_positions:
@@ -119,10 +128,11 @@ class Board(QFrame):
                 else:
                     continue
 
-                center_x = col * self.square_width()
-                center_y = row * self.square_height()
-                size = min(self.square_width(), self.square_height()) * 0.8
-                painter.drawPixmap(center_x - size / 2, center_y - size / 2, size, size, stone)
+                center_x = int(col * self.square_width())
+                center_y = int(row * self.square_height())
+                size = int(min(self.square_width(), self.square_height()) * 0.8)
+                painter.drawPixmap(center_x - size // 2, center_y - size // 2, size, size, stone)
+
 
     def draw_hovered_stone(self, painter):
         row, col = self.hovered_cell
