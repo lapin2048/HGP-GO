@@ -32,9 +32,9 @@ class Board(QFrame):
         self.remaining_time = 30
 
         # Load graphics
-        self.bg_image = QPixmap("Assets/background.png")
-        self.white_stone = QPixmap("Assets/white.png")
-        self.black_stone = QPixmap("Assets/black.png")
+        self.bg_image = QPixmap("../Assets/background.png")
+        self.white_stone = QPixmap("../Assets/white.png")
+        self.black_stone = QPixmap("../Assets/black.png")
 
         # Initialize game logic
         self.logic = GoGame(self.grid, self.GRID_SIZE)
