@@ -68,7 +68,13 @@ class Board(QFrame):
             )
 
     def draw_grid(self, painter):
-        painter.setPen(Qt.GlobalColor.black)
+        # Draw the grid lines
+        pen = painter.pen()
+        dark_brown = QColor(51, 25, 0)  # Dark brown RGB color
+        pen.setColor(dark_brown)  # Set the grid line color
+        pen.setWidth(2)  # Set the line thickness for grid lines
+        painter.setPen(pen)
+
         for col in range(self.GRID_SIZE):
             x = int(self.margin + col * self.square_width())
             painter.drawLine(x, self.margin, x, self.height() - self.margin)
@@ -76,6 +82,22 @@ class Board(QFrame):
         for row in range(self.GRID_SIZE):
             y = int(self.margin + row * self.square_height())
             painter.drawLine(self.margin, y, self.width() - self.margin, y)
+
+        # Draw the outline around the board
+        outline_pen = painter.pen()
+        mahogany_brown = QColor(102, 64, 0)  # Mahogany brown RGB color
+        outline_pen.setColor(mahogany_brown)  # Set the outline color
+        outline_pen.setWidth(4)  # Set the outline thickness
+        painter.setPen(outline_pen)
+
+        # Define the rectangle for the outline
+        painter.drawRect(
+            self.margin,
+            self.margin,
+            self.width() - 2 * self.margin,
+            self.height() - 2 * self.margin,
+        )
+
 
     def draw_stones(self, painter):
         """
