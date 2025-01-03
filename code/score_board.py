@@ -15,7 +15,7 @@ class ScoreBoard(QDockWidget):
     passTurnSignal = pyqtSignal()  # Emitted when a player passes their turn
     resetGameSignal = pyqtSignal()  # Emitted to restart the game
     endGameSignal = pyqtSignal(int)  # Emitted to declare a winner (0 for draw, 1/2 for player)
-
+    
     def __init__(self):
         super().__init__()
         self.init_backend()
@@ -84,12 +84,25 @@ class ScoreBoard(QDockWidget):
         """Connect signals from the board to the ScoreBoard."""
         if not board:
             raise ValueError("Invalid board instance provided for connection.")
-
         self.connectedBoard = board
+        print("Connecting signals...")
+
+        # Connect signals
         board.positionClicked.connect(self.setClickLocation)
+        print("Connected: positionClicked -> setClickLocation")
+
         board.updateTimerSignal.connect(self.setTimeRemaining)
+        print("Connected: updateTimerSignal -> setTimeRemaining")
+
         self.button_pass.clicked.connect(self.skipTurn)
-        self.button_restart.clicked.connect(self.resetGameSignal.emit)
+        print("Connected: button_pass -> skipTurn")
+
+        self.button_restart.clicked.connect(lambda: self.resetGameSignal.emit())
+        print("Connected: button_restart -> resetGameSignal")
+
+        board.updateScoresSignal.connect(self.updateScores)
+        print("Connected: updateScoresSignal -> updateScores")
+        board.updateCapturedStonesSignal.connect(self.updateCapturedStones) 
 
     @pyqtSlot(str)
     def setClickLocation(self, clickLoc):
@@ -105,8 +118,10 @@ class ScoreBoard(QDockWidget):
         """Add points to a player's score (1=Black, -1=White)."""
         if player == 1:
             self.black_score += points
+            print(f"Black score: {self.black_score}")
         else:
             self.white_score += points
+            print(f"White score: {self.white_score}")
         self.updateScores()
 
     def add_captured_stone(self, player):
@@ -134,26 +149,36 @@ class ScoreBoard(QDockWidget):
     def resetGame(self):
         """Reset all scores and update the UI."""
         self.init_backend()
-        self.updateScores()
-        self.label_turn.setText("Turn: Black")
+        default_scores = {"black": 0, "white": 0}  # Default scores for reset
+        self.updateScores(default_scores)  # Pass default scores
+        self.label_turn.setText("Turn: White")
         self.label_timeRemaining.setText("Time Remaining: ")
         self.label_clickLocation.setText("Click Location: ")
 
-    def updateScores(self):
-        """Update the UI with the current scores."""
-        self.label_blackScore.setText(f"Black Score: {self.black_score}")
-        self.label_whiteScore.setText(f"White Score: {self.white_score}")
-        self.label_capturedBlack.setText(f"Captured Black: {self.captured_black}")
-        self.label_capturedWhite.setText(f"Captured White: {self.captured_white}")
-        self.label_territoryBlack.setText(f"Territory Black: {self.territories['black']}")
-        self.label_territoryWhite.setText(f"Territory White: {self.territories['white']}")
+    def updateScores(self, scores):
+        print(f"Scores updated in UI: {scores}")  # Debug
+        if not scores:
+            scores['black'] = 0
+            scores['white'] = 0
+        self.label_blackScore.setText(f"Black Score: {scores['black']}")
+        self.label_whiteScore.setText(f"White Score: {scores['white']}")
+        self.updateTurn()
+        self.update() 
+        
+    def updateCapturedStones(self, captured_black, captured_white):
+        """Update the captured stones in the UI."""
+        print(f"Captured Stones updated in UI: Black: {captured_black}, White: {captured_white}")  # Debug
+        self.label_capturedBlack.setText(f"Captured Black: {captured_black}")
+        self.label_capturedWhite.setText(f"Captured White: {captured_white}")
 
-    def updateTurn(self, current_turn):
-        """Update the turn label."""
-        player = "Black" if current_turn == 1 else "White"
-        self.label_turn.setText(f"Turn: {player}")
+    def updateTurn(self):
+        """Update the turn label based on the current player."""
+        if self.connectedBoard:  # Ensure the board is connected
+            current_player = self.connectedBoard.logic.get_current_player()
+            player = "Black" if current_player == 1 else "White"
+            self.label_turn.setText(f"Turn: {player}")
 
     def skipTurn(self):
         """Handle the pass turn action."""
-        self.passTurnSignal.emit()
-        self.updateTurn(self.connectedBoard.logic.current_player)
+        self.passTurnSignal.emit()  # Emit the signal to pass the turn
+        self.updateTurn()  # Update the turn display dynamically

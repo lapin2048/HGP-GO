@@ -47,6 +47,8 @@ class Go(QMainWindow):
         self.stackedWidget.setCurrentWidget(self.board)
         self.board.start_game()  # Ensure the board is reset for the new game
         self.scoreBoard.make_connection(self.board)  # Link the board to the ScoreBoard
+        self.scoreBoard.passTurnSignal.connect(self.board.pass_turn)  # Handle turn passing
+        self.scoreBoard.passTurnSignal.connect(self.scoreBoard.updateTurn)  # Update turn display
         self.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, self.scoreBoard)
         print("Game started: Player 1 vs Player 2")
 
@@ -54,10 +56,26 @@ class Go(QMainWindow):
         """Reset the game."""
         self.board.reset()  # Reset the board state
         self.stackedWidget.setCurrentWidget(self.Menu)  # Go back to the menu
+    
+    def endGame(self):
+        """Handle the end-of-game scenario by calculating and displaying the scores."""
+        scores = self.board.logic.calculate_scores()  # Fetch final scores
+        black_score = scores["black"]
+        white_score = scores["white"]
 
-    def endGame(self, winner):
-        """Handle endgame."""
-        winner_name = "Player 1" if winner == 1 else "Player 2"
-        QMessageBox.information(self, "Game Over", f"{winner_name} wins the game!")
-        self.resetGame()
+        if black_score > white_score:
+            winner_message = f"Black wins by {black_score - white_score} points!"
+        elif white_score > black_score:
+            winner_message = f"White wins by {white_score - black_score} points!"
+        else:
+            winner_message = "The game is a draw!"
 
+        QMessageBox.information(self, "Game Over", winner_message)
+        self.resetGame()  # Reset the game after displaying the result
+
+
+    def resetGame(self):
+        """Reset the game."""
+        print("Resetting the game...")  # Debug statement
+        self.board.reset()  # Reset the board
+        self.scoreBoard.resetGame()  # Reset the ScoreBoard
