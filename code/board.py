@@ -10,13 +10,13 @@ class Board(QFrame):
     updateCapturedStonesSignal = pyqtSignal(int, int)
     updateTerritorySignal = pyqtSignal(int, int)
 
-    GRID_SIZE = 7  # Default 8x8 board
+    GRID_SIZE = 8  # Default 7x7 board
 
     def __init__(self, parent=None, logic=None):
         super().__init__(parent)
         if logic is None:
             raise ValueError("Game logic instance must be provided.")
-        
+
         self.margin = 40
         self.logic = logic
         self.hovered_cell = (-1, -1)
@@ -35,7 +35,7 @@ class Board(QFrame):
 
 
         self.setMouseTracking(True)  # Enable mouse hover detection
-    
+
     def resizeEvent(self, event):
         """Ensure the board maintains a 1:1 aspect ratio when resized."""
         size = min(self.width(), self.height())
@@ -127,7 +127,7 @@ class Board(QFrame):
         # Ensure the clicked position is within bounds
         if self.logic.is_within_bounds(grid_y, grid_x):
             self.positionClicked.emit(f"Clicked on cell {grid_y}, {grid_x}")
-            
+
             # Try placing a stone and check if the move is valid
             captured_positions = self.logic.place_stone(grid_y, grid_x)
             if captured_positions is not None:  # Move is valid
