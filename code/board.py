@@ -8,11 +8,11 @@ class Board(QFrame):
     positionClicked = pyqtSignal(str)
     updateTimerSignal = pyqtSignal(int)
     updateCapturedStonesSignal = pyqtSignal(int, int)
-    updateTerritorySignal = pyqtSignal(int, int)
+    updateScoresSignal = pyqtSignal(dict)  # Signal for score updates
 
-    GRID_SIZE = 7  # Default 8x8 board
+    GRID_SIZE = 8  # Default to 7x7 board
 
-    def __init__(self, parent=None, logic=None):
+    def __init__(self, parent=None, logic=None, score_board=None):
         super().__init__(parent)
         if logic is None:
             raise ValueError("Game logic instance must be provided.")
@@ -21,6 +21,13 @@ class Board(QFrame):
         self.logic = logic
         self.hovered_cell = (-1, -1)
         self.remaining_time = 30
+        self.score_board = score_board
+
+        # Timer for game countdown
+        self.timer = QTimer(self)
+        self.timer.timeout.connect(self.updateTimer)
+
+        self.setMouseTracking(True)  # Enable mouse hover detection
         self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         self.setMinimumSize(200, 200)  # Set a minimum size for the board
 
@@ -29,13 +36,6 @@ class Board(QFrame):
         self.white_stone = QPixmap("../Assets/white.png")
         self.black_stone = QPixmap("../Assets/black.png")
 
-        # Timer for game countdown
-        self.timer = QTimer(self)
-        self.timer.timeout.connect(self.updateTimer)
-
-
-        self.setMouseTracking(True)  # Enable mouse hover detection
-    
     def resizeEvent(self, event):
         """Ensure the board maintains a 1:1 aspect ratio when resized."""
         size = min(self.width(), self.height())
@@ -57,6 +57,7 @@ class Board(QFrame):
         self.draw_background(painter)
         self.draw_grid(painter)
         self.draw_stones(painter)
+        self.draw_hover(painter)
 
     def draw_background(self, painter):
         if not self.bg_image.isNull():
@@ -89,8 +90,6 @@ class Board(QFrame):
         outline_pen.setColor(mahogany_brown)  # Set the outline color
         outline_pen.setWidth(4)  # Set the outline thickness
         painter.setPen(outline_pen)
-
-        # Define the rectangle for the outline
         painter.drawRect(
             self.margin,
             self.margin,
@@ -98,50 +97,81 @@ class Board(QFrame):
             self.height() - 2 * self.margin,
         )
 
+    def draw_hover(self, painter):
+        """Draw a highlight on the hovered cell."""
+        if self.hovered_cell != (-1, -1):  # Ensure the hover is valid
+            row, col = self.hovered_cell
+            center_x = int(self.margin + col * self.square_width())
+            center_y = int(self.margin + row * self.square_height())
+            size = int(min(self.square_width(), self.square_height()) * 0.8)
+
+            # Set semi-transparent brush for the hover effect
+            painter.setBrush(Qt.GlobalColor.lightGray)
+            painter.setOpacity(0.5)
+            painter.drawEllipse(center_x - size // 2, center_y - size // 2, size, size)
+            painter.setOpacity(1.0)  # Reset opacity
 
     def draw_stones(self, painter):
-        """
-        Draw the stones on the board based on the current game state.
-        """
+        """Draw the stones on the board based on the current game state."""
         for row in range(self.GRID_SIZE):
             for col in range(self.GRID_SIZE):
-                piece = self.logic.get_piece_at(row, col)  # Use the logic to get the state of the piece
+                piece = self.logic.get_piece_at(row, col)
                 if piece == 1:
                     stone = self.black_stone
                 elif piece == -1:
                     stone = self.white_stone
                 else:
-                    continue  # No stone at this position
+                    continue
 
                 center_x = int(self.margin + col * self.square_width())
                 center_y = int(self.margin + row * self.square_height())
                 size = int(min(self.square_width(), self.square_height()) * 0.8)
                 painter.drawPixmap(center_x - size // 2, center_y - size // 2, size, size, stone)
 
-
-
     def mousePressEvent(self, event):
         grid_x = round((event.position().x() - self.margin) / self.square_width())
         grid_y = round((event.position().y() - self.margin) / self.square_height())
-
-        # Ensure the clicked position is within bounds
+        self.positionClicked.emit(f"({grid_y}, {grid_x})")
         if self.logic.is_within_bounds(grid_y, grid_x):
-            self.positionClicked.emit(f"Clicked on cell {grid_y}, {grid_x}")
-            
-            # Try placing a stone and check if the move is valid
             captured_positions = self.logic.place_stone(grid_y, grid_x)
-            if captured_positions is not None:  # Move is valid
-                self.update()  # Redraw the board
+            if captured_positions is not None:
+                self.update()
+
+                # Calculate updated scores and captured stones
+                scores = self.logic.calculate_scores()
+                print(f"Updated Scores: {scores}")  # Debug
+                captured = self.logic.captured_stones
+                print(f"Captured Stones: {captured}")  # Debug
+
+                self.updateScoresSignal.emit(scores)  # Emit scores as a dictionary
+                self.timer.stop()  # Stop the timer for the current player
+                self.remaining_time = 30  # Reset the timer for the next player
+                self.timer.start(1000)  # Restart the timer
+                self.updateCapturedStonesSignal.emit(captured[1], captured[-1])  # Emit captured stones
             else:
                 QMessageBox.warning(self, "Invalid Move", "This move is not allowed.")
 
+    def mouseMoveEvent(self, event):
+        grid_x = round((event.position().x() - self.margin) / self.square_width())
+        grid_y = round((event.position().y() - self.margin) / self.square_height())
+
+        if self.logic.is_within_bounds(grid_y, grid_x):
+            if self.hovered_cell != (grid_y, grid_x):
+                self.hovered_cell = (grid_y, grid_x)
+                print(f"Hovering over cell: ({grid_y}, {grid_x})")  # Debug
+                self.update()
+        else:
+            self.hovered_cell = (-1, -1)
+            self.update()
+
     def start_game(self):
-        """Initialize a new game."""
         self.logic.reset_game()
+        self.remaining_time = 30
+        self.updateTimerSignal.emit(self.remaining_time)
+        self.timer.start(1000)
         self.update()
 
     def end_game(self):
-        """Handle end of game logic."""
         scores = self.logic.calculate_scores()
         black_score = scores["black"]
         white_score = scores["white"]
@@ -156,10 +186,25 @@ class Board(QFrame):
         QMessageBox.information(self, "Game Over", message)
 
     def updateTimer(self):
-        """Update game timer."""
         self.remaining_time -= 1
         self.updateTimerSignal.emit(self.remaining_time)
 
         if self.remaining_time <= 0:
             self.timer.stop()
-            QMessageBox.information(self, "Time's Up!", "Time for this turn has ended.")
+            self.end_game()
+
+    def pass_turn(self):
+        self.timer.stop()
+        self.remaining_time = 30
+        self.updateTimerSignal.emit(self.remaining_time)
+        game_over = self.logic.pass_turn()
+        if game_over:
+            self.end_game()
+        else:
+            self.timer.start(1000)
+            self.update()
+
+    def reset(self):
+        print("Resetting the board...")
+        self.logic.reset_game()
+        self.update()

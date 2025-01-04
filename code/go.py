@@ -2,8 +2,9 @@ from PyQt6.QtWidgets import QApplication, QMainWindow, QStackedWidget, QMessageB
 from PyQt6.QtCore import Qt
 from board import Board
 from main_menu import Menu
-from score_board import ScoreBoard  # Ensure this is imported if used
+from score_board import ScoreBoard
 from game_logic import GoGame
+
 
 class Go(QMainWindow):
     def __init__(self):
@@ -18,6 +19,7 @@ class Go(QMainWindow):
         # Initialize pages
         self.Menu = Menu()
         self.scoreBoard = ScoreBoard()  # Properly initialize ScoreBoard
+        self.board = None  # Initialize board later in startGame
 
         # Add Menu and ScoreBoard to stackedWidget
         self.stackedWidget.addWidget(self.Menu)
@@ -43,23 +45,41 @@ class Go(QMainWindow):
 
     def startGame(self):
         """Switch to the game view and start the game."""
+        print("Starting the game...")
+        if not self.board:
+            print("Initializing Board and Game Logic...")
+            self.board = Board(parent=self, logic=GoGame(7))  # Initialize 7x7 board logic
+            self.scoreBoard.make_connection(self.board)  # Link the board to the ScoreBoard
+            self.scoreBoard.passTurnSignal.connect(self.board.pass_turn)  # Handle turn passing
+            self.scoreBoard.passTurnSignal.connect(self.scoreBoard.updateTurn)  # Update turn display
+
         self.stackedWidget.setCurrentWidget(self.scoreBoard)  # Switch to ScoreBoard
-
-        # Ensure the Board is initialized only in ScoreBoard
-        if not hasattr(self.scoreBoard, "board_widget"):
-            from board import Board
-            from game_logic import GoGame
-            self.scoreBoard.game_logic = GoGame(7)  # Initialize game logic
-            self.scoreBoard.board_widget = Board(parent=self.scoreBoard, logic=self.scoreBoard.game_logic)
-            self.scoreBoard.board_widget.setFixedSize(200, 200)
-            self.scoreBoard.layout().addWidget(self.scoreBoard.board_widget)
-            self.scoreBoard.layout().setAlignment(self.scoreBoard.board_widget, Qt.AlignmentFlag.AlignCenter)
-
-        self.scoreBoard.board_widget.logic.reset_game()  # Reset the game logic
+        self.board.start_game()  # Reset the board for a new game
+        self.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, self.scoreBoard)
         print("Game started: Player 1 vs Player 2")
 
-
     def resetGame(self):
-        """Reset the game to the initial state."""
-        self.scoreBoard.resetGame()
-        print("Game reset.")
+        """Reset the game."""
+        print("Resetting the game...")
+        if self.board:
+            self.board.reset()  # Reset the board
+        self.scoreBoard.resetGame()  # Reset the ScoreBoard
+        self.stackedWidget.setCurrentWidget(self.Menu)  # Return to the menu
+        print("Game reset and returned to the menu.")
+
+    def endGame(self):
+        """Handle the end-of-game scenario by calculating and displaying the scores."""
+        print("Ending the game and calculating scores...")
+        scores = self.board.logic.calculate_scores()  # Fetch final scores
+        black_score = scores["black"]
+        white_score = scores["white"]
+
+        if black_score > white_score:
+            winner_message = f"Black wins by {black_score - white_score} points!"
+        elif white_score > black_score:
+            winner_message = f"White wins by {white_score - black_score} points!"
+        else:
+            winner_message = "The game is a draw!"
+
+        QMessageBox.information(self, "Game Over", winner_message)
+        self.resetGame()  # Reset the game after displaying the result
