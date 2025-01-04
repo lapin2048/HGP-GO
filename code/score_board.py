@@ -58,7 +58,7 @@ class ScoreBoard(QDockWidget):
         self.mainLayout.addWidget(self.label_clickLocation)
 
         # Add current turn label
-        self.label_turn = QLabel("Turn: Black")  # Add label for player turn
+        self.label_turn = QLabel("Turn: White")  # Add label for player turn
         self.label_turn.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.mainLayout.addWidget(self.label_turn)
 
