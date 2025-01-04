@@ -48,15 +48,23 @@ class Go(QMainWindow):
         print("Starting the game...")
         if not self.board:
             print("Initializing Board and Game Logic...")
-            self.board = Board(parent=self, logic=GoGame(7))  # Initialize 7x7 board logic
+            self.board = Board(parent=self, logic=GoGame(8))  # Initialize 7x7 board logic
             self.scoreBoard.make_connection(self.board)  # Link the board to the ScoreBoard
             self.scoreBoard.passTurnSignal.connect(self.board.pass_turn)  # Handle turn passing
             self.scoreBoard.passTurnSignal.connect(self.scoreBoard.updateTurn)  # Update turn display
 
-        self.stackedWidget.setCurrentWidget(self.scoreBoard)  # Switch to ScoreBoard
+            # Add Board to ScoreBoard layout
+            self.scoreBoard.mainLayout.addWidget(self.board)
+            print("Board added to ScoreBoard layout.")
+
+        # Switch to the ScoreBoard screen
+        self.stackedWidget.setCurrentWidget(self.scoreBoard)
+        print(f"Switched to ScoreBoard: {self.stackedWidget.currentWidget()}")  # Debug
+
+        # Start the game
         self.board.start_game()  # Reset the board for a new game
-        self.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, self.scoreBoard)
         print("Game started: Player 1 vs Player 2")
+
 
     def resetGame(self):
         """Reset the game."""
