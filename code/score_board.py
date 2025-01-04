@@ -22,13 +22,13 @@ class ScoreBoard(QDockWidget):
     passTurnSignal = pyqtSignal()  # Emitted when a player passes their turn
     resetGameSignal = pyqtSignal()  # Emitted to restart the game
     endGameSignal = pyqtSignal(int)  # Emitted to declare a winner (0 for draw, 1/2 for player)
-    
+
     def __init__(self):
         super().__init__()
         self.board_widget = None  # Placeholder for the external Board instance
         self.init_backend()
         self.initUI()
-    
+
     def init_backend(self):
         """Initialize game logic."""
         from game_logic import GoGame
@@ -46,20 +46,26 @@ class ScoreBoard(QDockWidget):
 
         # Add labels for stats (top row)
         statsLayout = QHBoxLayout()
+        font = QFont()
+        font.setPointSize(14)
         self.label_blackScore = QLabel("Black Score: 0")
         self.label_whiteScore = QLabel("White Score: 0")
         self.label_timeRemaining = QLabel("Time Remaining: ")
+        self.label_blackScore.setFont(font)
+        self.label_whiteScore.setFont(font)
+        self.label_timeRemaining.setFont(font)
         statsLayout.addWidget(self.label_blackScore, alignment=Qt.AlignmentFlag.AlignLeft)
         statsLayout.addWidget(self.label_timeRemaining, alignment=Qt.AlignmentFlag.AlignCenter)
         statsLayout.addWidget(self.label_whiteScore, alignment=Qt.AlignmentFlag.AlignRight)
         self.mainLayout.addLayout(statsLayout)
 
         # Add label for click location
-        self.label_clickLocation = QLabel("Click Location: ")  # Add label for click location
-        self.mainLayout.addWidget(self.label_clickLocation)
+        #self.label_clickLocation = QLabel("Click Location: ")  # Add label for click location
+        #self.mainLayout.addWidget(self.label_clickLocation)
 
         # Add current turn label
         self.label_turn = QLabel("Turn: Black")  # Add label for player turn
+        self.label_turn.setFont(font)
         self.label_turn.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.mainLayout.addWidget(self.label_turn)
 
@@ -122,8 +128,8 @@ class ScoreBoard(QDockWidget):
     @pyqtSlot(str)
     def setClickLocation(self, clickLoc):
         """Update click location display."""
-        print(f"Click Location: {clickLoc}")  # Debug
-        self.label_clickLocation.setText("Click Location: " + clickLoc)
+        #print(f"Click Location: {clickLoc}")  # Debug
+        #self.label_clickLocation.setText("Click Location: " + clickLoc)
 
     @pyqtSlot(int)
     def setTimeRemaining(self, timeRemaining):
