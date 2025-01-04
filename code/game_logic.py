@@ -17,7 +17,7 @@ class GoGame:
         Reset the game state and initialize the board.
         """
         self.board_state = [[0 for _ in range(self.board_size)] for _ in range(self.board_size)]
-        self.current_player = -1  # Start with White (-1)
+        self.current_player = 1  # Start with Black (1)
         self.pass_count = 0
         self.previous_states = []
         self.captured_stones = {1: 0, -1: 0}
